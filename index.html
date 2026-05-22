@@ -989,7 +989,7 @@ input[type=checkbox] {
               <span class="card-title">Email preview</span>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm" onclick="copyEmail()">Copy</button>
-                <button class="btn btn-sm btn-accent" onclick="saveToDraft()">Save to Outlook</button>
+                <button class="btn btn-sm btn-accent" onclick="saveToDraft()">Open in Outlook</button>
                 <button class="btn btn-sm" onclick="clearGen()">Clear</button>
               </div>
             </div>
@@ -1527,45 +1527,29 @@ Warm regards,`;
   if (lead) { lead.status = 'drafted'; updateMetrics(); renderLeads(); }
 }
 
-async function saveToDraft() {
+function saveToDraft() {
   const bodyEl = document.getElementById('email-body-edit');
   if (!bodyEl) { setStatus('gen-status','Generate an email first','error'); return; }
   const body = bodyEl.innerText || bodyEl.textContent;
-  const sig = `\n\n--\n${CFG.sigName}\n${CFG.sigTitle} — ${CFG.sigCompany}\n${CFG.sigPhone} | ${CFG.outlookEmail} | ${CFG.sigWebsite}`;
-  setStatus('gen-status', 'Connecting to Outlook...', 'loading');
+  const sigName = CFG.sigName || 'Shruti Shah';
+  const sigTitle = CFG.sigTitle || 'Business Engagement & Partnership';
+  const sigCompany = CFG.sigCompany || 'The Binary Doc';
+  const sigPhone = CFG.sigPhone || '+91 (909) 967 9883';
+  const sigWebsite = CFG.sigWebsite || 'www.thebinarydoc.com';
+  const sig = `\n\n--\n${sigName}\n${sigTitle} — ${sigCompany}\n${sigPhone} | ${CFG.outlookEmail} | ${sigWebsite}`;
+  const fullBody = body + sig;
 
-  try {
-    const tr = await fetch(`https://login.microsoftonline.com/${CFG.tenantId}/oauth2/v2.0/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=client_credentials&client_id=${CFG.clientId}&client_secret=${encodeURIComponent(CFG.clientSecret)}&scope=https://graph.microsoft.com/.default`
-    });
-    const td = await tr.json();
-    if (!td.access_token) throw new Error(td.error_description || 'Token failed');
+  // Open Outlook compose window with email pre-filled via mailto
+  const mailto = `mailto:${encodeURIComponent(currentEmail.toEmail || '')}?subject=${encodeURIComponent(currentEmail.subject)}&body=${encodeURIComponent(fullBody)}`;
+  window.location.href = mailto;
 
-    const dr = await fetch(`https://graph.microsoft.com/v1.0/users/${CFG.outlookEmail}/messages`, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + td.access_token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subject: currentEmail.subject,
-        body: { contentType: 'Text', content: body + sig },
-        toRecipients: currentEmail.toEmail ? [{ emailAddress: { address: currentEmail.toEmail, name: currentEmail.toName } }] : [],
-        isDraft: true
-      })
-    });
+  setStatus('gen-status', '✓ Outlook is opening — attach The Binary Doc PDF then click Send', 'success');
+  addLog(`Email opened in Outlook for ${currentEmail.toName}`, 'sent');
 
-    if (dr.ok) {
-      setStatus('gen-status', '✓ Draft saved to Outlook — open your Drafts folder to review and send', 'success');
-      addLog(`Outlook draft saved: "${currentEmail.subject}"`, 'sent');
-      const lid = parseInt(document.getElementById('gen-lead').value);
-      if (!isNaN(lid)) { const l = leads.find(x => x.id === lid); if (l) { l.status = 'drafted'; updateMetrics(); renderLeads(); } }
-    } else {
-      const err = await dr.json();
-      throw new Error(err.error?.message || 'Graph API error');
-    }
-  } catch(e) {
-    setStatus('gen-status', '✗ ' + e.message, 'error');
-    addLog('Draft error: ' + e.message, 'error');
+  const lid = parseInt(document.getElementById('gen-lead').value);
+  if (!isNaN(lid)) {
+    const l = leads.find(x => x.id === lid);
+    if (l) { l.status = 'drafted'; updateMetrics(); renderLeads(); }
   }
 }
 
