@@ -1527,7 +1527,7 @@ Warm regards,`;
   if (lead) { lead.status = 'drafted'; updateMetrics(); renderLeads(); }
 }
 
-function saveToDraft() {
+async function saveToDraft() {
   const bodyEl = document.getElementById('email-body-edit');
   if (!bodyEl) { setStatus('gen-status','Generate an email first','error'); return; }
   const body = bodyEl.innerText || bodyEl.textContent;
@@ -1539,17 +1539,42 @@ function saveToDraft() {
   const sig = `\n\n--\n${sigName}\n${sigTitle} — ${sigCompany}\n${sigPhone} | ${CFG.outlookEmail} | ${sigWebsite}`;
   const fullBody = body + sig;
 
-  // Open Outlook compose window with email pre-filled via mailto
-  const mailto = `mailto:${encodeURIComponent(currentEmail.toEmail || '')}?subject=${encodeURIComponent(currentEmail.subject)}&body=${encodeURIComponent(fullBody)}`;
-  window.location.href = mailto;
+  const PROXY = 'https://tbd-proxy.onrender.com/save-draft';
 
-  setStatus('gen-status', '✓ Outlook is opening — attach The Binary Doc PDF then click Send', 'success');
-  addLog(`Email opened in Outlook for ${currentEmail.toName}`, 'sent');
+  setStatus('gen-status', 'Saving to Outlook drafts...', 'loading');
 
-  const lid = parseInt(document.getElementById('gen-lead').value);
-  if (!isNaN(lid)) {
-    const l = leads.find(x => x.id === lid);
-    if (l) { l.status = 'drafted'; updateMetrics(); renderLeads(); }
+  try {
+    const res = await fetch(PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantId: CFG.tenantId,
+        clientId: CFG.clientId,
+        clientSecret: CFG.clientSecret,
+        outlookEmail: CFG.outlookEmail,
+        subject: currentEmail.subject,
+        emailBody: fullBody,
+        toEmail: currentEmail.toEmail,
+        toName: currentEmail.toName
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setStatus('gen-status', '✓ Draft saved to Outlook! Open Outlook → Drafts → attach PDF → Send', 'success');
+      addLog(`Draft saved to Outlook: ${currentEmail.toName}`, 'sent');
+      const lid = parseInt(document.getElementById('gen-lead').value);
+      if (!isNaN(lid)) {
+        const l = leads.find(x => x.id === lid);
+        if (l) { l.status = 'drafted'; updateMetrics(); renderLeads(); }
+      }
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch(e) {
+    setStatus('gen-status', '✗ Error: ' + e.message, 'error');
+    addLog('Draft error: ' + e.message, 'error');
   }
 }
 
