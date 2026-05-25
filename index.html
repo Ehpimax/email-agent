@@ -1470,40 +1470,56 @@ async function generateEmail() {
     </div>`;
   setStatus('gen-status', '', '');
 
-  const emailTemplate = `Respected ${salutation} ${fname}${fullLname ? ' '+fullLname : ''},
+  const sigName = CFG.sigName || 'Shruti Shah';
+  const sigTitle = CFG.sigTitle || 'Business Engagement & Partnership';
+  const sigCompany = CFG.sigCompany || 'The Binary Doc';
+  const sigPhone = CFG.sigPhone || '+91 (909) 967 9883';
+  const sigWeb = CFG.sigWebsite || 'www.thebinarydoc.com';
+  const sigEmail = CFG.outlookEmail || 'info@thebinarydoc.com';
+  const sigImgUrl = 'https://raw.githubusercontent.com/Ehpimax/email-agent/main/signature.png';
 
-Greetings.
+  const emailTemplate = `<html><body style="font-family:Arial,sans-serif;font-size:14px;line-height:1.8;color:#000000;max-width:700px;">
 
-I am pleased to introduce our organization, The Binary Doc, a technology engineering and delivery company with strong capabilities in cloud platforms, DevOps engineering, SaaS consulting, AI enablement, managed services, and offshore talent delivery. With delivery centers in Ahmedabad and Bangalore, we support enterprise clients through structured execution, deep technical expertise, and well-aligned governance models.
+<p>Respected ${salutation} ${fname}${fullLname ? ' '+fullLname : ''},</p>
 
-About The Binary Doc
+<p>Greetings.</p>
 
-The Binary Doc works with organizations to design, modernize, and operate scalable technology platforms aligned with long-term business and operational objectives. Our approach combines strong architectural thinking with hands-on delivery, enabling teams to adopt modern technologies while maintaining reliability, security, and performance standards required in enterprise environments.
+<p>I am pleased to introduce our organization, <strong>The Binary Doc</strong>, a technology engineering and delivery company with strong capabilities in cloud platforms, DevOps engineering, SaaS consulting, AI enablement, managed services, and offshore talent delivery. With delivery centers in Ahmedabad and Bangalore, we support enterprise clients through structured execution, deep technical expertise, and well-aligned governance models.</p>
 
-Cloud Engineering & Modernization Services
-Our cloud engineering services cover architecture design, migration, modernization, and ongoing platform optimization. We focus on building scalable, resilient, and secure environments aligned with enterprise governance practices. Our teams support transitions from legacy systems to modern cloud architectures while ensuring minimal disruption, improved performance, and long-term maintainability through structured design patterns and automation.
+<p><strong>About The Binary Doc</strong></p>
 
-DevOps & Platform Automation
-We enable organizations to implement mature DevOps practices through automation-driven delivery models. This includes CI/CD pipeline implementation, Infrastructure as Code, release process optimization, and environment standardization across development lifecycles. Our goal is to improve deployment consistency, reduce operational risk, and enhance collaboration between development and operations teams while maintaining compliance and reliability.
+<p>The Binary Doc works with organizations to design, modernize, and operate scalable technology platforms aligned with long-term business and operational objectives. Our approach combines strong architectural thinking with hands-on delivery, enabling teams to adopt modern technologies while maintaining reliability, security, and performance standards required in enterprise environments.</p>
 
-SaaS Advisory & Integration Services
-Our SaaS consulting capabilities support structured adoption and seamless integration of enterprise SaaS platforms. We assist with evaluation, onboarding strategy, architecture alignment, integration design, and operational optimization to ensure SaaS solutions integrate effectively with existing ecosystems while maintaining governance and performance standards.
+<p><strong>Cloud Engineering &amp; Modernization Services</strong></p>
+<p>Our cloud engineering services cover architecture design, migration, modernization, and ongoing platform optimization. We focus on building scalable, resilient, and secure environments aligned with enterprise governance practices. Our teams support transitions from legacy systems to modern cloud architectures while ensuring minimal disruption, improved performance, and long-term maintainability through structured design patterns and automation.</p>
 
-Managed Services, Reliability & Operational Support
-We provide managed services focused on proactive monitoring, incident response, performance tuning, and continuous optimization aligned with defined operational practices. By establishing structured observability and support processes, we help organizations maintain stable environments, reduce downtime, and ensure consistent operational performance while working as an extension of internal engineering teams.
+<p><strong>DevOps &amp; Platform Automation</strong></p>
+<p>We enable organizations to implement mature DevOps practices through automation-driven delivery models. This includes CI/CD pipeline implementation, Infrastructure as Code, release process optimization, and environment standardization across development lifecycles. Our goal is to improve deployment consistency, reduce operational risk, and enhance collaboration between development and operations teams while maintaining compliance and reliability.</p>
 
-AI Enablement & Modern Application Support
-We support application modernization initiatives and the introduction of advanced capabilities such as AI-driven automation and intelligent workflows. Our focus remains on practical implementation aligned with business objectives, enabling improved productivity, scalability, and long-term sustainability without unnecessary complexity.
+<p><strong>SaaS Advisory &amp; Integration Services</strong></p>
+<p>Our SaaS consulting capabilities support structured adoption and seamless integration of enterprise SaaS platforms. We assist with evaluation, onboarding strategy, architecture alignment, integration design, and operational optimization to ensure SaaS solutions integrate effectively with existing ecosystems while maintaining governance and performance standards.</p>
 
-Engagement Model
-From an engagement standpoint, we operate as a technical extension to enterprise teams, providing senior expertise through flexible models including project-based execution, dedicated teams, and staff augmentation aligned with enterprise delivery frameworks.
+<p><strong>Managed Services, Reliability &amp; Operational Support</strong></p>
+<p>We provide managed services focused on proactive monitoring, incident response, performance tuning, and continuous optimization aligned with defined operational practices. By establishing structured observability and support processes, we help organizations maintain stable environments, reduce downtime, and ensure consistent operational performance while working as an extension of internal engineering teams.</p>
 
-Next Steps
-We would welcome the opportunity to understand ${company || "your organization"}'s current technical priorities, engagement expectations, and any internal processes or prerequisites from your side to evaluate alignment and identify areas where our engineering capabilities may support ongoing initiatives.
+<p><strong>AI Enablement &amp; Modern Application Support</strong></p>
+<p>We support application modernization initiatives and the introduction of advanced capabilities such as AI-driven automation and intelligent workflows. Our focus remains on practical implementation aligned with business objectives, enabling improved productivity, scalability, and long-term sustainability without unnecessary complexity.</p>
 
-Thank you for your time and consideration.
+<p><strong>Engagement Model</strong></p>
+<p>From an engagement standpoint, we operate as a technical extension to enterprise teams, providing senior expertise through flexible models including project-based execution, dedicated teams, and staff augmentation aligned with enterprise delivery frameworks.</p>
 
-Warm regards,`;
+<p><strong>Next Steps</strong></p>
+<p>We would welcome the opportunity to understand <strong>${company || "your organization"}</strong>'s current technical priorities, engagement expectations, and any internal processes or prerequisites from your side to evaluate alignment and identify areas where our engineering capabilities may support ongoing initiatives.</p>
+
+<p>Thank you for your time and consideration.</p>
+
+<p>Warm regards,</p>
+
+<br>
+<img src="${sigImgUrl}" alt="Shruti Shah - The Binary Doc" style="width:420px;max-width:100%;height:auto;display:block;" />
+<p style="font-size:11px;color:#888888;">📎 Please attach: The Binary Doc Company Profile.pdf</p>
+
+</body></html>`;
 
   currentEmail = {
     subject: FIXED_SUBJECT,
