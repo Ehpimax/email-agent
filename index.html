@@ -1284,55 +1284,68 @@ input[type=checkbox] {
 </div>
 
 <script>
-// ── CONFIG — loaded from localStorage only, never hardcoded ──
+// ── CONFIG — loaded from localStorage ──
 function loadCFG() {
-  const saved = localStorage.getItem('tbd_cfg');
-  if (saved) return JSON.parse(saved);
-  return {
-    clientId: '', tenantId: '', clientSecret: '',
-    outlookEmail: '', geminiKey: '',
-    sigName: '', sigTitle: '', sigCompany: '',
-    sigPhone: '', sigWebsite: '',
-  };
+  try {
+    const saved = localStorage.getItem('tbd_cfg');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch(e) { console.log('CFG load error:', e); }
+  return { clientId:'', tenantId:'', clientSecret:'', outlookEmail:'', geminiKey:'', sigName:'', sigTitle:'', sigCompany:'', sigPhone:'', sigWebsite:'' };
 }
 function saveCFG() {
-  localStorage.setItem('tbd_cfg', JSON.stringify(CFG));
+  try { localStorage.setItem('tbd_cfg', JSON.stringify(CFG)); } catch(e) { console.log('CFG save error:', e); }
 }
 let CFG = loadCFG();
 
-// ── AUTH — stored in localStorage, never hardcoded ──
+// ── AUTH — stored in localStorage ──
 function loadAUTH() {
-  const saved = localStorage.getItem('tbd_auth');
-  if (saved) return JSON.parse(saved);
+  try {
+    const saved = localStorage.getItem('tbd_auth');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return { password: parsed.password || '', loggedIn: false, setupDone: parsed.setupDone || false };
+    }
+  } catch(e) { console.log('AUTH load error:', e); }
   return { password: '', loggedIn: false, setupDone: false };
 }
 function saveAUTH() {
-  const toSave = { password: AUTH.password, loggedIn: false, setupDone: AUTH.setupDone };
-  localStorage.setItem('tbd_auth', JSON.stringify(toSave));
+  try { localStorage.setItem('tbd_auth', JSON.stringify({ password: AUTH.password, loggedIn: false, setupDone: AUTH.setupDone })); } catch(e) { console.log('AUTH save error:', e); }
 }
 let AUTH = loadAUTH();
 
 function doLogin() {
+  // Reload fresh from localStorage every time
+  AUTH = loadAUTH();
+  CFG = loadCFG();
+
   // First time — no password set yet, go to setup
-  if (!AUTH.setupDone) { showScreen('setup'); return; }
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
-  const pass = document.getElementById('login-pass').value;
+  if (!AUTH.setupDone || !AUTH.password) {
+    showScreen('setup');
+    return;
+  }
+
+  const email = (document.getElementById('login-email').value || '').trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value || '';
   const errEl = document.getElementById('login-error');
   errEl.style.display = 'none';
 
   const storedEmail = (CFG.outlookEmail || '').trim().toLowerCase();
   const storedPass = AUTH.password || '';
 
-  if (email === storedEmail && pass === storedPass) {
+  console.log('Login attempt — email match:', email === storedEmail, '| pass match:', pass === storedPass);
+
+  if (pass === storedPass && (email === storedEmail || storedEmail === '')) {
     AUTH.loggedIn = true;
     showScreen('dashboard');
     initDashboard();
   } else {
     errEl.style.display = 'block';
-    errEl.textContent = 'Incorrect email or password. Please try again.';
-    // Debug helper — remove after fixing
-    console.log('Expected email:', storedEmail, '| Got:', email);
-    console.log('Password match:', pass === storedPass);
+    errEl.textContent = pass !== storedPass
+      ? 'Incorrect password. Please try again.'
+      : 'Incorrect email. Use: ' + (CFG.outlookEmail || 'your registered email');
   }
 }
 
@@ -2222,14 +2235,17 @@ async function runBulkDraft() {
 
 // ── STARTUP — decide which screen to show ──
 window.addEventListener('DOMContentLoaded', () => {
-  if (!AUTH.setupDone) {
+  // Always reload fresh from localStorage on page load
+  AUTH = loadAUTH();
+  CFG = loadCFG();
+  console.log('Setup done:', AUTH.setupDone, '| Has password:', !!AUTH.password, '| Email:', CFG.outlookEmail);
+
+  if (!AUTH.setupDone || !AUTH.password) {
     showScreen('setup');
   } else {
     showScreen('login');
-    if (CFG.outlookEmail) {
-      const el = document.getElementById('login-email');
-      if (el) el.value = CFG.outlookEmail;
-    }
+    const el = document.getElementById('login-email');
+    if (el && CFG.outlookEmail) el.value = CFG.outlookEmail;
   }
 });
 </script>
