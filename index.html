@@ -1,67 +1,2284 @@
-const express = require('express');
-const cors = require('cors');
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Binary Doc — Email Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --bg4: #222222;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0ede8;
+  --text2: #888880;
+  --text3: #555550;
+  --accent: #c8f04a;
+  --accent2: #a8d038;
+  --accent-dim: rgba(200,240,74,0.1);
+  --accent-dim2: rgba(200,240,74,0.18);
+  --red: #ff5555;
+  --red-dim: rgba(255,85,85,0.12);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96,165,250,0.12);
+  --green: #4ade80;
+  --green-dim: rgba(74,222,128,0.12);
+  --amber: #fbbf24;
+  --amber-dim: rgba(251,191,36,0.12);
+  --radius: 10px;
+  --radius-lg: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+a { color: var(--accent); text-decoration: none; }
 
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 4px; }
 
-app.post('/save-draft', async (req, res) => {
+/* ── SCREENS ── */
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: flex; }
+
+/* ══════════════════════════════
+   LOGIN SCREEN
+══════════════════════════════ */
+#screen-login {
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+.login-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(200,240,74,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,240,74,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.login-glow {
+  position: absolute;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(200,240,74,0.06) 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.login-box {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 48px 44px;
+  width: 400px;
+  position: relative;
+  z-index: 1;
+  animation: fadeUp 0.5s ease;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-logo {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 32px;
+}
+.login-logo-dot {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.login-logo-dot span {
+  width: 10px; height: 10px;
+  background: var(--bg);
+  border-radius: 50%;
+  display: block;
+}
+.login-logo-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.login-title {
+  font-size: 22px; font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+.login-sub {
+  font-size: 13px; color: var(--text2);
+  margin-bottom: 28px;
+}
+.form-field { margin-bottom: 16px; }
+.form-field label {
+  display: block;
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.form-field input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-field input:focus { border-color: var(--accent); }
+.form-field input::placeholder { color: var(--text3); }
+.btn-login {
+  width: 100%;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  padding: 12px;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s, transform 0.1s;
+  letter-spacing: 0.02em;
+}
+.btn-login:hover { background: var(--accent2); }
+.btn-login:active { transform: scale(0.99); }
+.login-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px; color: var(--text2);
+}
+.login-footer a { cursor: pointer; color: var(--accent); }
+.login-error {
+  background: var(--red-dim);
+  border: 1px solid rgba(255,85,85,0.2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 12px; color: var(--red);
+  margin-bottom: 16px;
+  display: none;
+}
+.login-success {
+  background: var(--green-dim);
+  border: 1px solid rgba(74,222,128,0.2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 12px; color: var(--green);
+  margin-bottom: 16px;
+  display: none;
+}
+
+/* ══════════════════════════════
+   RESET SCREEN
+══════════════════════════════ */
+#screen-reset {
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ══════════════════════════════
+   DASHBOARD SCREEN
+══════════════════════════════ */
+#screen-dashboard {
+  flex-direction: row;
+  background: var(--bg);
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+}
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.sidebar-logo-dot {
+  width: 24px; height: 24px;
+  background: var(--accent);
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sidebar-logo-dot span {
+  width: 8px; height: 8px;
+  background: var(--bg); border-radius: 50%; display: block;
+}
+.sidebar-logo-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 14px; color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.sidebar-logo-sub { font-size: 10px; color: var(--text3); font-family: 'Syne', sans-serif; }
+.sidebar-nav { flex: 1; padding: 12px 10px; }
+.nav-section-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 10px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 13px; font-weight: 500;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+  border: none; background: none;
+  width: 100%; text-align: left;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--accent-dim2); color: var(--accent); }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--accent-dim2);
+  color: var(--accent);
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px;
+}
+.sidebar-bottom {
+  padding: 12px 10px;
+  border-top: 1px solid var(--border);
+}
+.user-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg3);
+  margin-bottom: 8px;
+}
+.user-avatar {
+  width: 30px; height: 30px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--bg);
+  flex-shrink: 0;
+}
+.user-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.user-email { font-size: 10px; color: var(--text3); }
+.btn-logout {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text2);
+  font-family: 'Syne', sans-serif;
+  font-size: 12px; cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-logout:hover { background: var(--red-dim); color: var(--red); border-color: rgba(255,85,85,0.2); }
+
+/* MAIN CONTENT */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  height: 100vh;
+  padding: 28px 32px;
+}
+.page { display: none; animation: fadeIn 0.25s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* PAGE HEADER */
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.page-sub { font-size: 12px; color: var(--text2); margin-top: 3px; }
+
+/* METRIC CARDS */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.metric-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.metric-card:hover::before { opacity: 1; }
+.metric-icon {
+  width: 32px; height: 32px;
+  background: var(--accent-dim);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+.metric-icon svg { width: 16px; height: 16px; }
+.metric-val { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
+.metric-label { font-size: 11px; color: var(--text2); margin-top: 2px; font-weight: 500; }
+
+/* CARDS */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.card-body { padding: 20px; }
+
+/* BUTTONS */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg4); border-color: var(--border2); }
+.btn-accent {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.btn-accent:hover { background: var(--accent2); border-color: var(--accent2); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-danger { color: var(--red); border-color: rgba(255,85,85,0.2); }
+.btn-danger:hover { background: var(--red-dim); }
+.btn svg { width: 14px; height: 14px; }
+
+/* TABLE */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left;
+  padding: 11px 14px;
+  font-size: 11px; font-weight: 600;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  white-space: nowrap;
+}
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg3); }
+
+/* BADGES */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 20px;
+}
+.badge-pending { background: var(--amber-dim); color: var(--amber); }
+.badge-drafted { background: var(--blue-dim); color: var(--blue); }
+.badge-sent { background: var(--green-dim); color: var(--green); }
+.badge-noemail { background: var(--red-dim); color: var(--red); }
+
+/* INPUTS */
+.input {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--text3); }
+select.input { cursor: pointer; }
+
+/* FORM GROUP */
+.fg { display: flex; flex-direction: column; gap: 6px; }
+.fg label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+/* EMAIL PREVIEW */
+.email-preview {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-top: 16px;
+}
+.email-meta {
+  font-size: 12px; color: var(--text2);
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  line-height: 2;
+}
+.email-meta strong { color: var(--text); font-weight: 600; }
+.email-body-edit {
+  font-size: 13px; line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+  outline: none;
+  min-height: 100px;
+  font-family: 'Syne', sans-serif;
+}
+.sig-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.sig-name { font-weight: 700; color: var(--text); font-size: 13px; }
+.sig-title { color: var(--text2); margin-top: 1px; }
+.sig-contacts { color: var(--text3); margin-top: 6px; line-height: 2; }
+
+/* TOGGLE */
+.toggle-wrap { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.toggle-info {}
+.toggle-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.toggle-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.toggle {
+  width: 40px; height: 22px;
+  border-radius: 11px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle.on { background: var(--accent); }
+.toggle.off { background: var(--bg4); }
+.toggle-knob {
+  position: absolute; top: 3px;
+  width: 16px; height: 16px;
+  border-radius: 50%; background: white;
+  transition: left 0.2s;
+}
+.toggle.on .toggle-knob { left: 21px; }
+.toggle.off .toggle-knob { left: 3px; }
+
+/* SCHEDULE CARD */
+.sch-region {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+/* SLIDER */
+.slider-row { display: flex; align-items: center; gap: 14px; }
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--bg4);
+  border-radius: 4px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.slider-val {
+  font-size: 16px; font-weight: 700;
+  color: var(--accent);
+  min-width: 36px; text-align: right;
+}
+
+/* LOG */
+.log-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.log-item:last-child { border-bottom: none; }
+.log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.log-dot-green { background: var(--green); }
+.log-dot-blue { background: var(--blue); }
+.log-dot-red { background: var(--red); }
+.log-time { color: var(--text3); min-width: 55px; flex-shrink: 0; }
+.log-msg { color: var(--text2); flex: 1; }
+
+/* STATUS BAR */
+.status-bar {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  display: none;
+}
+.status-bar.success { background: var(--green-dim); color: var(--green); border: 1px solid rgba(74,222,128,0.15); display: block; }
+.status-bar.error { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,85,85,0.15); display: block; }
+.status-bar.loading { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,0.15); display: block; }
+
+/* SETTINGS */
+.settings-section {
+  margin-bottom: 28px;
+}
+.settings-section-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--accent-dim2);
+}
+.setting-row {
+  display: flex; align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-label { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+.setting-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.setting-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* PILL STATUS */
+.conn-pill {
+  font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.conn-green { background: var(--green-dim); color: var(--green); }
+.conn-blue { background: var(--blue-dim); color: var(--blue); }
+.conn-amber { background: var(--amber-dim); color: var(--amber); }
+
+/* EMPTY STATE */
+.empty { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+.empty svg { width: 40px; height: 40px; margin: 0 auto 12px; display: block; opacity: 0.3; }
+
+/* MODAL */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  width: 440px;
+  animation: fadeUp 0.25s ease;
+}
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.02em; }
+.modal-sub { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+/* DOTS LOADING */
+@keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+.dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--blue); margin: 0 2px; animation: blink 1.2s infinite; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* CHECKBOX */
+input[type=checkbox] {
+  width: 15px; height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ACTIONS ROW */
+.actions-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.search-input { flex: 1; min-width: 160px; }
+
+/* DIVIDER */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* TOP BAR STATUS */
+.topbar-pills {
+  display: flex; align-items: center; gap: 8px;
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ════════════════════════════
+     LOGIN SCREEN
+════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <div class="login-grid"></div>
+  <div class="login-glow"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-dot"><span></span></div>
+      <div>
+        <div class="login-logo-text">the binary doc</div>
+        <div style="font-size:10px;color:var(--text3);font-family:'Syne',sans-serif;">email agent dashboard</div>
+      </div>
+    </div>
+    <div class="login-title">Welcome back</div>
+    <div class="login-sub">Sign in to access your email agent</div>
+    <div class="login-error" id="login-error">Incorrect email or password. Please try again.</div>
+    <div class="login-success" id="login-success"></div>
+    <div class="form-field">
+      <label>Email address</label>
+      <input type="email" id="login-email" placeholder="info@thebinarydoc.com" value="info@thebinarydoc.com">
+    </div>
+    <div class="form-field">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Sign in →</button>
+    <div class="login-footer">
+      <a onclick="showReset()">Forgot password?</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════
+     RESET SCREEN
+════════════════════════════ -->
+<div id="screen-reset" class="screen">
+  <div class="login-grid"></div>
+  <div class="login-glow"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-dot"><span></span></div>
+      <div>
+        <div class="login-logo-text">the binary doc</div>
+        <div style="font-size:10px;color:var(--text3);font-family:'Syne',sans-serif;">password reset</div>
+      </div>
+    </div>
+    <div class="login-title">Reset password</div>
+    <div class="login-sub">Enter your current password and choose a new one</div>
+    <div class="login-error" id="reset-error"></div>
+    <div class="login-success" id="reset-success"></div>
+    <div class="form-field">
+      <label>Email address</label>
+      <input type="email" id="reset-email" placeholder="info@thebinarydoc.com">
+    </div>
+    <div class="form-field">
+      <label>Current password</label>
+      <input type="password" id="reset-old" placeholder="Current password">
+    </div>
+    <div class="form-field">
+      <label>New password</label>
+      <input type="password" id="reset-new" placeholder="Min 8 characters">
+    </div>
+    <div class="form-field">
+      <label>Confirm new password</label>
+      <input type="password" id="reset-confirm" placeholder="Repeat new password">
+    </div>
+    <button class="btn-login" onclick="doReset()">Reset password →</button>
+    <div class="login-footer">
+      <a onclick="showLogin()">← Back to login</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════
+     DASHBOARD SCREEN
+════════════════════════════ -->
+<div id="screen-dashboard" class="screen">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-dot"><span></span></div>
+      <div>
+        <div class="sidebar-logo-text">the binary doc</div>
+        <div class="sidebar-logo-sub">email agent v1.0</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">overview</div>
+      <button class="nav-item active" onclick="navTo('overview',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </button>
+      <div class="nav-section-label" style="margin-top:8px">agent</div>
+      <button class="nav-item" onclick="navTo('leads',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Leads
+        <span class="nav-badge" id="nb-leads">0</span>
+      </button>
+      <button class="nav-item" onclick="navTo('generate',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Generate Emails
+      </button>
+      <button class="nav-item" onclick="navTo('bulk',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Bulk Draft
+        <span class="nav-badge" style="background:rgba(200,240,74,0.3);color:var(--accent)">NEW</span>
+      </button>
+      <button class="nav-item" onclick="navTo('schedule',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Schedule
+      </button>
+      <button class="nav-item" onclick="navTo('log',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Activity Log
+        <span class="nav-badge" id="nb-log" style="display:none">!</span>
+      </button>
+      <div class="nav-section-label" style="margin-top:8px">config</div>
+      <button class="nav-item" onclick="navTo('settings',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="user-card">
+        <div class="user-avatar" id="user-avatar">SS</div>
+        <div>
+          <div class="user-name" id="user-name-display">Shruti Shah</div>
+          <div class="user-email" id="user-email-display">info@thebinarydoc.com</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ── OVERVIEW PAGE ── -->
+    <div id="page-overview" class="page active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Good morning, Shruti 👋</div>
+          <div class="page-sub">Here's what's happening with your email agent today</div>
+        </div>
+        <div class="topbar-pills">
+          <span class="conn-pill conn-green">● Azure connected</span>
+          <span class="conn-pill conn-blue">● Gemini ready</span>
+        </div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="metric-val" id="ov-total">0</div>
+          <div class="metric-label">Total leads</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="background:var(--blue-dim);color:var(--blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+          <div class="metric-val" id="ov-withemail">0</div>
+          <div class="metric-label">With email</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="background:var(--amber-dim);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div class="metric-val" id="ov-drafted">0</div>
+          <div class="metric-label">Drafts saved</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="background:var(--green-dim);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+          <div class="metric-val" id="ov-sent">0</div>
+          <div class="metric-label">Emails sent</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Region breakdown</span>
+          </div>
+          <div class="card-body" style="padding:14px 20px">
+            <div id="region-breakdown"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Quick actions</span>
+          </div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-accent" onclick="navTo('generate',document.querySelector('.nav-item:nth-child(6)'))">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Generate new email
+            </button>
+            <button class="btn" onclick="navTo('leads',document.querySelector('.nav-item:nth-child(4)'))">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              View all leads
+            </button>
+            <button class="btn" onclick="navTo('schedule',document.querySelector('.nav-item:nth-child(7)'))">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Manage schedule
+            </button>
+            <button class="btn" onclick="navTo('settings',document.querySelector('.nav-item:nth-child(9)'))">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="3"/></svg>
+              Update credentials
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LEADS PAGE ── -->
+    <div id="page-leads" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Leads</div>
+          <div class="page-sub">Upload Excel file — bulk save all emails to Outlook Drafts in one click</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(this)">
+          <button class="btn" onclick="document.getElementById('excel-upload').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload Excel
+          </button>
+          <button class="btn btn-accent" onclick="bulkDraftAll()" id="bulk-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Save All to Outlook Drafts
+          </button>
+        </div>
+      </div>
+
+      <!-- BULK PROGRESS -->
+      <div id="bulk-progress-area" style="display:none;margin-bottom:16px;">
+        <div class="card">
+          <div class="card-body" style="padding:16px 20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:13px;font-weight:600;color:var(--text)" id="bulk-status-text">Preparing emails...</span>
+              <span style="font-size:12px;color:var(--accent);font-weight:700" id="bulk-count-text">0 / 0</span>
+            </div>
+            <div style="height:6px;background:var(--bg4);border-radius:6px;overflow:hidden;">
+              <div id="bulk-progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:6px;transition:width 0.3s;"></div>
+            </div>
+            <div id="bulk-log" style="margin-top:12px;max-height:120px;overflow-y:auto;font-size:11px;color:var(--text2);line-height:1.8;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <input class="input search-input" id="lead-search" placeholder="Search name, company, email..." oninput="renderLeads()">
+        <select class="input" style="width:auto" id="lead-filter" onchange="renderLeads()">
+          <option value="all">All status</option>
+          <option value="pending">Pending</option>
+          <option value="drafted">Drafted</option>
+          <option value="sent">Sent</option>
+          <option value="noemail">No email</option>
+        </select>
+        <select class="input" style="width:auto" id="lead-region" onchange="renderLeads()">
+          <option value="all">All regions</option>
+          <option value="india">India</option>
+          <option value="uk">UK</option>
+          <option value="usa">USA</option>
+          <option value="uae">UAE</option>
+        </select>
+        <span style="font-size:12px;color:var(--text3)" id="lead-count"></span>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
+                <th>Name</th>
+                <th>Title</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>Region</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="leads-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GENERATE PAGE ── -->
+    <div id="page-generate" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Generate Email</div>
+          <div class="page-sub">AI-powered personalized outreach via Gemini — saves directly to Outlook drafts</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:20px;align-items:start">
+        <div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Compose settings</span></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+              <div class="fg">
+                <label>Select lead</label>
+                <select class="input" id="gen-lead" onchange="prefillLead()">
+                  <option value="">Choose a lead...</option>
+                </select>
+              </div>
+              <div class="form-grid" style="margin:0">
+                <div class="fg">
+                  <label>First name</label>
+                  <input class="input" id="gen-fname" placeholder="e.g. Babu">
+                </div>
+                <div class="fg">
+                  <label>Last name</label>
+                  <input class="input" id="gen-lname" placeholder="e.g. Narra">
+                </div>
+              </div>
+              <div class="fg">
+                <label>Company name</label>
+                <input class="input" id="gen-company" placeholder="e.g. SolTech InfoLabs">
+              </div>
+              <div class="fg">
+                <label>Their role</label>
+                <input class="input" id="gen-role" placeholder="e.g. Founder and CEO">
+              </div>
+              <div style="padding:10px 14px;background:var(--accent-dim);border:1px solid var(--accent-dim2);border-radius:var(--radius);font-size:11px;color:var(--accent);line-height:1.6;">
+                📌 <strong>Fixed subject:</strong> Technical Delivery Capability Introduction | The Binary Doc
+              </div>
+              <div style="padding:10px 14px;background:var(--blue-dim);border:1px solid rgba(96,165,250,0.15);border-radius:var(--radius);font-size:11px;color:var(--blue);line-height:1.6;">
+                🤖 Mr./Ms. auto-detected by first name &nbsp;·&nbsp; Company name auto-inserted in body
+              </div>
+              <button class="btn btn-accent" style="width:100%;justify-content:center" onclick="generateEmail()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                Generate Email
+              </button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Email preview</span>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-sm" onclick="copyEmail()">Copy</button>
+                <button class="btn btn-sm btn-accent" onclick="saveToDraft()">Open in Outlook</button>
+                <button class="btn btn-sm" onclick="clearGen()">Clear</button>
+              </div>
+            </div>
+            <div class="card-body" id="gen-preview-body">
+              <div class="empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Select a lead and click generate to preview your email here
+              </div>
+            </div>
+          </div>
+          <div class="status-bar" id="gen-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BULK DRAFT PAGE ── -->
+    <div id="page-bulk" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Bulk Draft</div>
+          <div class="page-sub">Upload your Excel file — all emails saved to Outlook Drafts automatically</div>
+        </div>
+      </div>
+
+      <!-- Upload Zone -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title">Step 1 — Upload your leads Excel file</span></div>
+        <div class="card-body">
+          <div id="bulk-dropzone" style="border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:40px;text-align:center;cursor:pointer;transition:all 0.2s;"
+            onclick="document.getElementById('bulk-file-input').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+            ondragleave="this.style.borderColor='var(--border2)'"
+            ondrop="handleFileDrop(event)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;margin:0 auto 12px;display:block;color:var(--accent)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Click to upload or drag & drop</div>
+            <div style="font-size:12px;color:var(--text3)">Excel file (.xlsx) with columns: First Name, Last Name, Company, Email, Title</div>
+          </div>
+          <input type="file" id="bulk-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileUpload(this)">
+          <div id="bulk-file-info" style="margin-top:12px;font-size:12px;color:var(--accent);display:none"></div>
+        </div>
+      </div>
+
+      <!-- Preview Table -->
+      <div class="card" id="bulk-preview-card" style="margin-bottom:16px;display:none">
+        <div class="card-header">
+          <span class="card-title">Step 2 — Review leads</span>
+          <span style="font-size:12px;color:var(--text2)" id="bulk-lead-count"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="bulk-chk-all" onchange="toggleBulkAll(this)" checked></th>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>Gender</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="bulk-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Action -->
+      <div class="card" id="bulk-action-card" style="display:none">
+        <div class="card-header"><span class="card-title">Step 3 — Save all to Outlook Drafts</span></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button class="btn btn-accent" style="font-size:14px;padding:12px 24px" onclick="runBulkDraft()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Save All to Outlook Drafts
+            </button>
+            <div style="font-size:12px;color:var(--text3)">One email per lead - saved automatically - BCC shruti@thebinarydoc.com on each</div>
+          </div>
+          <!-- Progress -->
+          <div id="bulk-progress-area" style="margin-top:16px;display:none">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px">
+              <span id="bulk-progress-label">Processing...</span>
+              <span id="bulk-progress-count">0 / 0</span>
+            </div>
+            <div style="height:6px;background:var(--bg4);border-radius:6px;overflow:hidden">
+              <div id="bulk-progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:6px;transition:width 0.3s"></div>
+            </div>
+          </div>
+          <!-- Results -->
+          <div id="bulk-results" style="margin-top:16px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SCHEDULE PAGE ── -->
+    <div id="page-schedule" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Schedule</div>
+          <div class="page-sub">Set optimal sending times by region — Tuesday to Thursday for best results</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="sch-region">
+          <div class="toggle-wrap">
+            <div class="toggle-info">
+              <div class="toggle-label">🇮🇳 India (IST)</div>
+              <div class="toggle-sub">Run agent at 8:30 AM IST · queue: <span id="q-india">0</span> leads</div>
+            </div>
+            <button class="toggle on" id="tog-india" onclick="this.classList.toggle('on');this.classList.toggle('off')"><div class="toggle-knob"></div></button>
+          </div>
+          <div style="font-size:11px;color:var(--text3)">Best open rate window: 9–11 AM IST</div>
+        </div>
+        <div class="sch-region">
+          <div class="toggle-wrap">
+            <div class="toggle-info">
+              <div class="toggle-label">🇦🇪 UAE / Middle East (GST)</div>
+              <div class="toggle-sub">Run agent at 7:30 AM IST · queue: <span id="q-uae">0</span> leads</div>
+            </div>
+            <button class="toggle off" id="tog-uae" onclick="this.classList.toggle('on');this.classList.toggle('off')"><div class="toggle-knob"></div></button>
+          </div>
+          <div style="font-size:11px;color:var(--text3)">Best open rate window: 9–11 AM GST</div>
+        </div>
+        <div class="sch-region">
+          <div class="toggle-wrap">
+            <div class="toggle-info">
+              <div class="toggle-label">🇬🇧 United Kingdom (GMT)</div>
+              <div class="toggle-sub">Run agent at 2:30 PM IST · queue: <span id="q-uk">0</span> leads</div>
+            </div>
+            <button class="toggle off" id="tog-uk" onclick="this.classList.toggle('on');this.classList.toggle('off')"><div class="toggle-knob"></div></button>
+          </div>
+          <div style="font-size:11px;color:var(--text3)">Best open rate window: 9–11 AM GMT</div>
+        </div>
+        <div class="sch-region">
+          <div class="toggle-wrap">
+            <div class="toggle-info">
+              <div class="toggle-label">🇺🇸 USA East (EST)</div>
+              <div class="toggle-sub">Run agent at 7:30 PM IST · queue: <span id="q-usa">0</span> leads</div>
+            </div>
+            <button class="toggle off" id="tog-usa" onclick="this.classList.toggle('on');this.classList.toggle('off')"><div class="toggle-knob"></div></button>
+          </div>
+          <div style="font-size:11px;color:var(--text3)">Best open rate window: 9–11 AM EST</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Daily email limit</span></div>
+        <div class="card-body">
+          <div class="slider-row">
+            <span style="font-size:13px;color:var(--text2)">Emails per day</span>
+            <input type="range" min="10" max="150" value="50" step="10" id="daily-slider" oninput="document.getElementById('daily-val').textContent=this.value">
+            <span class="slider-val" id="daily-val">50</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">⚠ Keep under 100/day on new domains to avoid spam flags. Increase gradually after 2–3 weeks.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LOG PAGE ── -->
+    <div id="page-log" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Activity Log</div>
+          <div class="page-sub">Full record of all agent actions this session</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="clearLog()">Clear log</button>
+      </div>
+      <div class="card">
+        <div class="card-body" id="log-body">
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            No activity yet — generate your first email to see logs here
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS PAGE ── -->
+    <div id="page-settings" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Settings</div>
+          <div class="page-sub">Manage your credentials, signature, and account</div>
+        </div>
+        <button class="btn btn-accent" onclick="saveSettings()">Save changes</button>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body">
+          <div class="settings-section">
+            <div class="settings-section-title">Azure / Outlook credentials</div>
+            <div class="form-grid" style="margin-bottom:14px">
+              <div class="fg"><label>Client ID</label><input class="input" id="s-client-id" style="font-family:'DM Mono',monospace;font-size:12px"></div>
+              <div class="fg"><label>Tenant ID</label><input class="input" id="s-tenant-id" style="font-family:'DM Mono',monospace;font-size:12px"></div>
+            </div>
+            <div class="form-grid" style="margin-bottom:0">
+              <div class="fg"><label>Client Secret</label><input class="input" type="password" id="s-client-secret" style="font-family:'DM Mono',monospace;font-size:12px"></div>
+              <div class="fg"><label>Outlook Email</label><input class="input" id="s-outlook-email" type="email"></div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="settings-section">
+            <div class="settings-section-title">Gemini API</div>
+            <div class="fg"><label>Gemini API Key</label><input class="input" type="password" id="s-gemini-key" style="font-family:'DM Mono',monospace;font-size:12px"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="settings-section">
+            <div class="settings-section-title">Email signature</div>
+            <div class="form-grid" style="margin-bottom:14px">
+              <div class="fg"><label>Full name</label><input class="input" id="s-sig-name"></div>
+              <div class="fg"><label>Job title</label><input class="input" id="s-sig-title"></div>
+            </div>
+            <div class="form-grid" style="margin-bottom:14px">
+              <div class="fg"><label>Company</label><input class="input" id="s-sig-company"></div>
+              <div class="fg"><label>Phone</label><input class="input" id="s-sig-phone"></div>
+            </div>
+            <div class="fg"><label>Website</label><input class="input" id="s-sig-website"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="settings-section" style="margin-bottom:0">
+            <div class="settings-section-title">Account</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Change password</div>
+                <div class="setting-sub">Update your dashboard login password</div>
+              </div>
+              <button class="btn btn-sm" onclick="showResetFromSettings()">Change password</button>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Connection status</div>
+                <div class="setting-sub">Current state of API connections</div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <span class="conn-pill conn-green">Azure ●</span>
+                <span class="conn-pill conn-blue">Gemini ●</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="status-bar" id="settings-status"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- RESET PASSWORD MODAL (from settings) -->
+<div class="modal-overlay" id="reset-modal">
+  <div class="modal">
+    <div class="modal-title">Change password</div>
+    <div class="modal-sub">Update your dashboard login password</div>
+    <div class="fg" style="margin-bottom:12px"><label>Current password</label><input class="input" type="password" id="m-old-pass" placeholder="Current password"></div>
+    <div class="fg" style="margin-bottom:12px"><label>New password</label><input class="input" type="password" id="m-new-pass" placeholder="Min 8 characters"></div>
+    <div class="fg"><label>Confirm new password</label><input class="input" type="password" id="m-confirm-pass" placeholder="Repeat new password"></div>
+    <div class="status-bar" id="modal-status" style="margin-top:12px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="doModalReset()">Update password</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG — loaded from localStorage only, never hardcoded ──
+function loadCFG() {
+  const saved = localStorage.getItem('tbd_cfg');
+  if (saved) return JSON.parse(saved);
+  return {
+    clientId: '', tenantId: '', clientSecret: '',
+    outlookEmail: '', geminiKey: '',
+    sigName: '', sigTitle: '', sigCompany: '',
+    sigPhone: '', sigWebsite: '',
+  };
+}
+function saveCFG() {
+  localStorage.setItem('tbd_cfg', JSON.stringify(CFG));
+}
+let CFG = loadCFG();
+
+// ── AUTH — stored in localStorage, never hardcoded ──
+function loadAUTH() {
+  const saved = localStorage.getItem('tbd_auth');
+  if (saved) return JSON.parse(saved);
+  return { password: '', loggedIn: false, setupDone: false };
+}
+function saveAUTH() {
+  const toSave = { password: AUTH.password, loggedIn: false, setupDone: AUTH.setupDone };
+  localStorage.setItem('tbd_auth', JSON.stringify(toSave));
+}
+let AUTH = loadAUTH();
+
+function doLogin() {
+  // First time — no password set yet, go to setup
+  if (!AUTH.setupDone) { showScreen('setup'); return; }
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  if (email === CFG.outlookEmail && pass === AUTH.password) {
+    AUTH.loggedIn = true;
+    showScreen('dashboard');
+    initDashboard();
+  } else {
+    errEl.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  AUTH.loggedIn = false;
+  saveAUTH();
+  document.getElementById('login-pass').value = '';
+  showScreen('login');
+}
+
+function showReset() { showScreen('reset'); }
+function showLogin() { showScreen('login'); }
+
+function doReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  const oldPass = document.getElementById('reset-old').value;
+  const newPass = document.getElementById('reset-new').value;
+  const confirm = document.getElementById('reset-confirm').value;
+  const errEl = document.getElementById('reset-error');
+  const sucEl = document.getElementById('reset-success');
+  errEl.style.display = 'none'; sucEl.style.display = 'none';
+  errEl.textContent = ''; sucEl.textContent = '';
+
+  if (email !== CFG.outlookEmail) { errEl.textContent = 'Email not recognised.'; errEl.style.display = 'block'; return; }
+  if (oldPass !== AUTH.password) { errEl.textContent = 'Current password is incorrect.'; errEl.style.display = 'block'; return; }
+  if (newPass.length < 8) { errEl.textContent = 'New password must be at least 8 characters.'; errEl.style.display = 'block'; return; }
+  if (newPass !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
+
+  AUTH.password = newPass;
+  saveAUTH();
+  sucEl.textContent = '✓ Password updated! Redirecting to login...';
+  sucEl.style.display = 'block';
+  ['reset-email','reset-old','reset-new','reset-confirm'].forEach(id => document.getElementById(id).value = '');
+  setTimeout(() => showLogin(), 1800);
+}
+
+function showResetFromSettings() {
+  document.getElementById('reset-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('reset-modal').classList.remove('open');
+  ['m-old-pass','m-new-pass','m-confirm-pass'].forEach(id => document.getElementById(id).value = '');
+  setStatus('modal-status','','');
+}
+function doModalReset() {
+  const old = document.getElementById('m-old-pass').value;
+  const nw = document.getElementById('m-new-pass').value;
+  const cf = document.getElementById('m-confirm-pass').value;
+  if (old !== AUTH.password) { setStatus('modal-status','Current password incorrect','error'); return; }
+  if (nw.length < 8) { setStatus('modal-status','New password must be at least 8 characters','error'); return; }
+  if (nw !== cf) { setStatus('modal-status','Passwords do not match','error'); return; }
+  AUTH.password = nw;
+  saveAUTH();
+  setStatus('modal-status','✓ Password updated successfully','success');
+  setTimeout(() => closeModal(), 1500);
+}
+
+// ── SCREENS ──
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+// ── NAVIGATION ──
+function navTo(page, btn) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (page === 'generate') populateLeadSelect();
+  if (page === 'settings') loadSettings();
+}
+
+// ── LEADS DATA ──
+const LEADS_RAW = [
+  {fname:'Babu',lname:'Narra',title:'Founder and CEO',company:'SolTech InfoLabs',email:'babu.narra@soltechie.com',location:'Hyderabad, India'},
+  {fname:'Nadia',lname:'Whitehead',title:'Founder',company:'The Elevation Collective',email:'nadia@theelevationcollectives.com',location:'United States'},
+  {fname:'Venugopal',lname:'Maddipatla',title:'CEO & Founder',company:'Srinture Technologies',email:'',location:'Hyderabad, India'},
+  {fname:'Mohit',lname:'Bagga',title:'Head of Technology',company:'Indian Startups',email:'mohit@indianstartups.net',location:'Delhi, India'},
+  {fname:'Gulshan',lname:'Yadav',title:'Founder',company:'Misar AI Technology',email:'gulshan@misar.io',location:'Greater Delhi Area'},
+  {fname:'Vishal',lname:'Zanzrukia',title:'CEO & Founder',company:'Software Solutions',email:'vishalzanzrukia@cloud.upwork.com',location:'Ahmedabad, India'},
+  {fname:'Akash',lname:'Raj',title:'Founder & CEO',company:'LCMGO',email:'akash@lcmgo.com',location:'Bangalore, India'},
+  {fname:'Adam',lname:'Jessop',title:'CEO',company:'Endpoint Esports Ltd',email:'adam@endpoint.gg',location:'Sheffield, UK'},
+  {fname:'Vladimir',lname:'Miroshnichenko',title:'Founder & CTO',company:'GITMIR',email:'vladimir@gitmir.com',location:'United Kingdom'},
+  {fname:'Veli',lname:'Kocak',title:'CEO & Founder',company:'Reach Concept',email:'veli@reachconcept.com',location:'Washington DC, USA'},
+  {fname:'Charles',lname:'Araujo',title:'President Enterprise IT',company:'SymphonyAI',email:'charles.araujo@symphonyai.com',location:'New York, USA'},
+  {fname:'Jeff',lname:'Cole',title:'CEO & Founder',company:'Pearly',email:'jeff@pearlyplan.com',location:'Santa Barbara, USA'},
+  {fname:'Anthony',lname:'Davis',title:'Co-Founder',company:'Saint Marie Records',email:'anthony@monitionpartners.com',location:'Seattle, USA'},
+  {fname:'Deepti',lname:'Arora',title:'Chief Consultant',company:'DeepFront',email:'deepti@getomnipractice.com',location:'Gurugram, India'},
+  {fname:'David',lname:'Lofy',title:'Founder/CEO',company:'toPointC',email:'dave@topointc.com',location:'Carlsbad, USA'},
+  {fname:'Ahesanali',lname:'Vijapura',title:'Founder & CEO',company:'Narjis Infotech',email:'ahesanali@narjisinfotech.com',location:'Ahmedabad, India'},
+  {fname:'Faiz',lname:'Chaudhry',title:'CEO',company:'Imperial Technologies',email:'faiz@imperialinternet.com',location:'New York, USA'},
+  {fname:'Mahesh',lname:'Gosavi',title:'Founder & CEO',company:'HireWire 3.0',email:'mahesh.gosavi@hirewire3-0.com',location:'Pune, India'},
+  {fname:'Junior',lname:'Gerdet',title:'Founder & CEO',company:'Scope AGI',email:'jgerdet@scopeagi.com',location:'United States'},
+  {fname:'Kaushal',lname:'S.',title:'Founder & CEO',company:'Epistic Technologies',email:'kaushal@epistic.net',location:'Ahmedabad, India'},
+  {fname:'Nirupam',lname:'Singh',title:'Founder & CTO',company:'DX Business Group',email:'info@nirupamsingh.com',location:'Delhi, India'},
+  {fname:'Barry',lname:'Johnson',title:'Founder',company:'OffsureIT',email:'barry.johnson@offsureit.com',location:'Austin, USA'},
+  {fname:'Murtaza',lname:'Mustafa',title:'Founder',company:'Growth Theory',email:'',location:'Mumbai, India'},
+  {fname:'Sumitaka',lname:'Yamamoto',title:'CEO & Founder',company:'HeartCore Enterprises',email:'kanno@higgsfield.co.jp',location:'Los Altos, USA'},
+  {fname:'Ravi',lname:'Kumar',title:'Founder & CEO',company:'Wetechnix',email:'',location:'Bengaluru, India'},
+];
+
+let leads = LEADS_RAW.map((l,i) => ({...l, id:i, status: l.email ? 'pending' : 'noemail'}));
+let selectedIds = new Set();
+let activityLog = [];
+let currentEmail = {subject:'', body:'', toEmail:'', toName:''};
+
+function getRegion(loc) {
+  if (!loc) return 'other';
+  const l = loc.toLowerCase();
+  if (l.includes('india')) return 'india';
+  if (l.includes('uk') || l.includes('united kingdom') || l.includes('england') || l.includes('sheffield')) return 'uk';
+  if (l.includes('usa') || l.includes('united states') || l.includes('new york') || l.includes('california') || l.includes('washington') || l.includes('texas') || l.includes('seattle') || l.includes('austin') || l.includes('carlsbad') || l.includes('santa barbara') || l.includes('los altos')) return 'usa';
+  if (l.includes('uae') || l.includes('dubai')) return 'uae';
+  return 'other';
+}
+
+function updateMetrics() {
+  const tot = leads.length;
+  const we = leads.filter(l => l.email).length;
+  const dr = leads.filter(l => l.status === 'drafted').length;
+  const se = leads.filter(l => l.status === 'sent').length;
+  ['ov-total','ov-withemail','ov-drafted','ov-sent'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = [tot,we,dr,se][i];
+  });
+  document.getElementById('nb-leads').textContent = tot;
+  const qi = leads.filter(l => getRegion(l.location)==='india' && l.email && l.status==='pending').length;
+  const qu = leads.filter(l => getRegion(l.location)==='uk' && l.email && l.status==='pending').length;
+  const qusa = leads.filter(l => getRegion(l.location)==='usa' && l.email && l.status==='pending').length;
+  const quae = leads.filter(l => getRegion(l.location)==='uae' && l.email && l.status==='pending').length;
+  ['q-india','q-uk','q-usa','q-uae'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = [qi,qu,qusa,quae][i];
+  });
+  renderRegionBreakdown();
+}
+
+function renderRegionBreakdown() {
+  const rb = document.getElementById('region-breakdown');
+  if (!rb) return;
+  const regions = ['india','uk','usa','uae','other'];
+  const labels = {'india':'🇮🇳 India','uk':'🇬🇧 UK','usa':'🇺🇸 USA','uae':'🇦🇪 UAE','other':'🌐 Other'};
+  const counts = {};
+  regions.forEach(r => counts[r] = leads.filter(l => getRegion(l.location)===r && l.email).length);
+  const max = Math.max(...Object.values(counts), 1);
+  rb.innerHTML = regions.map(r => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+        <span style="color:var(--text2)">${labels[r]}</span>
+        <span style="color:var(--accent);font-weight:700">${counts[r]}</span>
+      </div>
+      <div style="height:4px;background:var(--bg4);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(counts[r]/max*100)}%;background:var(--accent);border-radius:4px;transition:width 0.4s"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderLeads() {
+  const q = (document.getElementById('lead-search')?.value || '').toLowerCase();
+  const sf = document.getElementById('lead-filter')?.value || 'all';
+  const rf = document.getElementById('lead-region')?.value || 'all';
+  const filtered = leads.filter(l => {
+    const mq = !q || (l.fname+' '+l.lname+' '+l.company+' '+(l.email||'')).toLowerCase().includes(q);
+    const ms = sf === 'all' || l.status === sf;
+    const mr = rf === 'all' || getRegion(l.location) === rf;
+    return mq && ms && mr;
+  });
+  const tbody = document.getElementById('leads-tbody');
+  if (!tbody) return;
+  document.getElementById('lead-count').textContent = `${filtered.length} of ${leads.length}`;
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty">No leads match your filters</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(l => `
+    <tr>
+      <td>${l.email ? `<input type="checkbox" onchange="toggleSel(${l.id},this)" ${selectedIds.has(l.id)?'checked':''}>`  : ''}</td>
+      <td style="font-weight:600;white-space:nowrap">${l.fname} ${l.lname}</td>
+      <td style="color:var(--text2);font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.title||'—'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.company||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.email||'<span style="color:var(--red);font-size:11px">no email</span>'}</td>
+      <td style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">${getRegion(l.location)}</td>
+      <td><span class="badge badge-${l.status}">${l.status}</span></td>
+      <td>${l.email ? `<button class="btn btn-sm" onclick="quickGen(${l.id})">Draft</button>` : ''}</td>
+    </tr>`).join('');
+}
+
+function toggleAll(c) {
+  leads.forEach(l => { if (l.email) { if (c.checked) selectedIds.add(l.id); else selectedIds.delete(l.id); }});
+  renderLeads();
+}
+function toggleSel(id, c) { if (c.checked) selectedIds.add(id); else selectedIds.delete(id); }
+
+function quickGen(id) {
+  navTo('generate', document.querySelectorAll('.nav-item')[2]);
+  setTimeout(() => {
+    populateLeadSelect();
+    document.getElementById('gen-lead').value = id;
+    prefillLead();
+    generateEmail();
+  }, 150);
+}
+
+function populateLeadSelect() {
+  const sel = document.getElementById('gen-lead');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Choose a lead...</option>' +
+    leads.filter(l => l.email).map(l => `<option value="${l.id}">${l.fname} ${l.lname} — ${l.company}</option>`).join('');
+}
+
+function prefillLead() {
+  const id = parseInt(document.getElementById('gen-lead').value);
+  if (isNaN(id)) return;
+  const l = leads.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('gen-fname').value = l.fname;
+  const lnameEl = document.getElementById('gen-lname');
+  if (lnameEl) lnameEl.value = l.lname || '';
+  document.getElementById('gen-company').value = l.company;
+  document.getElementById('gen-role').value = l.title + (l.company ? ' at ' + l.company : '');
+}
+
+// Enhanced Gender detection
+function detectGender(fname) {
+  const female = ['nadia','navya','deepti','priya','pooja','aarti','sneha','anjali','kavita','sunita','rita','anita','meena','rekha','sonal','divya','nisha','ritu','swati','neha','poonam','isha','shreya','mona','riya','tanya','nina','sara','sarah','emily','jessica','jennifer','michelle','lisa','ashley','amanda','stephanie','melissa','laura','rachel','karen','nancy','margaret','linda','barbara','elizabeth','susan','jessica','kelly','amy','donna','carol','helen','deborah','diane','janet','maria','ruth','emma','alice','judith','victoria','rose','grace','eleanor','ann','anna','marie','angela','diana','patricia','sandra','sharon','cynthia','kathleen','martha','debra','amy','shirley','angela','helen','samantha','nicole','judith','claire','julie','andrea','hannah','megan','stephanie','lauren','amber','brittany','danielle','isabella','sophia','olivia','ava','emily','abigail','madison','elizabeth','charlotte','amelia','mia','harper','evelyn','aria','scarlett','grace','chloe','camila','penelope','riley','layla','lillian','nora','zoey','mila','aubrey','hannah','lily','addison','eleanor','natalie','luna','savannah','brooklynn','audrey','bella','claire','skylar','lucy','paisley','everly','anna','caroline','nova','genesis','emilia','kennedy','ruby','valentina','sophie','maya','alice','willow'];
+  const n = fname.toLowerCase().trim();
+  if (female.includes(n)) return 'Ms.';
+  // Common Indian female names
+  const indianFemale = ['priya','pooja','sneha','anjali','kavita','sunita','meena','rekha','sonal','divya','nisha','swati','neha','poonam','isha','shreya','riya','tanya','ananya','anika','aditi','akanksha','ambika','amisha','amita','amruta','anagha','ananya','anita','ankita','anuja','anusha','aparna','archana','aruna','asha','ashwini','avani','bhavana','bhavna','charu','chhavi','disha','esha','gargi','gayatri','geetanjali','gita','harini','heena','hetal','hima','hina','ira','jagruti','janhvi','jyoti','kajal','kalpana','kanchan','karuna','khushboo','kiran','kirti','komal','kratika','krishna','kusum','lakshmi','lata','lavanya','leena','lekha','madhavi','madhu','mala','manasi','manisha','manjiri','manjula','mansi','meera','megha','mili','minal','mithila','mithra','monika','mukta','namita','namrata','nandini','nayana','nidhi','nikita','nimisha','nita','nitu','pallavi','parina','parita','parul','puja','purvi','rachana','radha','radhika','ragini','rashmi','ratna','reena','revati','rohini','roshni','rupa','rupali','rutvi','sadhana','sakshi','saloni','samta','sandhya','sangita','sanjana','sapna','sarita','sati','savita','seema','shachi','shailaja','shakuntala','shalu','shama','shanti','sharda','shefali','shilpa','shivani','shraddha','shruti','shubhangi','shweta','siddhi','smita','smriti','sonam','sonali','sonia','srushti','supriya','surbhi','swapna','taruna','tejal','tina','trisha','tulsi','usha','urmila','urvashi','vanita','varsha','vaishali','vibha','vidya','vijaya','vinita','vipula','vrinda','yogita'];
+  if (indianFemale.includes(n)) return 'Ms.';
+  return 'Mr.';
+}
+
+async function generateEmail() {
+  const fname = document.getElementById('gen-fname').value.trim();
+  const lname = document.getElementById('gen-lname') ? document.getElementById('gen-lname').value.trim() : '';
+  const company = document.getElementById('gen-company').value.trim();
+  const role = document.getElementById('gen-role').value.trim();
+  if (!fname) { alert('Please enter a first name or select a lead'); return; }
+
+  const leadId = parseInt(document.getElementById('gen-lead').value);
+  const lead = isNaN(leadId) ? null : leads.find(l => l.id === leadId);
+  const fullLname = lead?.lname || lname || '';
+  const salutation = detectGender(fname);
+  const greeting = `Respected ${salutation} ${fname}${fullLname ? ' ' + fullLname : ''},`;
+  const FIXED_SUBJECT = 'Technical Delivery Capability Introduction | The Binary Doc';
+
+  document.getElementById('gen-preview-body').innerHTML = `
+    <div style="padding:30px;text-align:center;color:var(--text2)">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <div style="margin-top:12px;font-size:12px">Writing with Gemini...</div>
+    </div>`;
+  setStatus('gen-status', '', '');
+
+  const sigName = CFG.sigName || 'Shruti Shah';
+  const sigTitle = CFG.sigTitle || 'Business Engagement & Partnership';
+  const sigCompany = CFG.sigCompany || 'The Binary Doc';
+  const sigPhone = CFG.sigPhone || '+91 (909) 967 9883';
+  const sigWeb = CFG.sigWebsite || 'www.thebinarydoc.com';
+  const sigEmail = CFG.outlookEmail || 'info@thebinarydoc.com';
+  const sigImgUrl = 'https://raw.githubusercontent.com/Ehpimax/email-agent/main/signature.png';
+
+  const emailTemplate = `<html><body style="font-family:Arial,sans-serif;font-size:14px;line-height:1.8;color:#000000;max-width:700px;">
+
+<p>Respected ${salutation} ${fname}${fullLname ? ' '+fullLname : ''},</p>
+
+<p>Greetings.</p>
+
+<p>I am pleased to introduce our organization, <strong>The Binary Doc</strong>, a technology engineering and delivery company with strong capabilities in cloud platforms, DevOps engineering, SaaS consulting, AI enablement, managed services, and offshore talent delivery. With delivery centers in Ahmedabad and Bangalore, we support enterprise clients through structured execution, deep technical expertise, and well-aligned governance models.</p>
+
+<p><strong>About The Binary Doc</strong></p>
+
+<p>The Binary Doc works with organizations to design, modernize, and operate scalable technology platforms aligned with long-term business and operational objectives. Our approach combines strong architectural thinking with hands-on delivery, enabling teams to adopt modern technologies while maintaining reliability, security, and performance standards required in enterprise environments.</p>
+
+<p><strong>Cloud Engineering &amp; Modernization Services</strong></p>
+<p>Our cloud engineering services cover architecture design, migration, modernization, and ongoing platform optimization. We focus on building scalable, resilient, and secure environments aligned with enterprise governance practices. Our teams support transitions from legacy systems to modern cloud architectures while ensuring minimal disruption, improved performance, and long-term maintainability through structured design patterns and automation.</p>
+
+<p><strong>DevOps &amp; Platform Automation</strong></p>
+<p>We enable organizations to implement mature DevOps practices through automation-driven delivery models. This includes CI/CD pipeline implementation, Infrastructure as Code, release process optimization, and environment standardization across development lifecycles. Our goal is to improve deployment consistency, reduce operational risk, and enhance collaboration between development and operations teams while maintaining compliance and reliability.</p>
+
+<p><strong>SaaS Advisory &amp; Integration Services</strong></p>
+<p>Our SaaS consulting capabilities support structured adoption and seamless integration of enterprise SaaS platforms. We assist with evaluation, onboarding strategy, architecture alignment, integration design, and operational optimization to ensure SaaS solutions integrate effectively with existing ecosystems while maintaining governance and performance standards.</p>
+
+<p><strong>Managed Services, Reliability &amp; Operational Support</strong></p>
+<p>We provide managed services focused on proactive monitoring, incident response, performance tuning, and continuous optimization aligned with defined operational practices. By establishing structured observability and support processes, we help organizations maintain stable environments, reduce downtime, and ensure consistent operational performance while working as an extension of internal engineering teams.</p>
+
+<p><strong>AI Enablement &amp; Modern Application Support</strong></p>
+<p>We support application modernization initiatives and the introduction of advanced capabilities such as AI-driven automation and intelligent workflows. Our focus remains on practical implementation aligned with business objectives, enabling improved productivity, scalability, and long-term sustainability without unnecessary complexity.</p>
+
+<p><strong>Engagement Model</strong></p>
+<p>From an engagement standpoint, we operate as a technical extension to enterprise teams, providing senior expertise through flexible models including project-based execution, dedicated teams, and staff augmentation aligned with enterprise delivery frameworks.</p>
+
+<p><strong>Next Steps</strong></p>
+<p>We would welcome the opportunity to understand <strong>${company || "your organization"}</strong>'s current technical priorities, engagement expectations, and any internal processes or prerequisites from your side to evaluate alignment and identify areas where our engineering capabilities may support ongoing initiatives.</p>
+
+<p>Thank you for your time and consideration.</p>
+
+<p>Warm regards,</p>
+
+<br>
+<img src="${sigImgUrl}" alt="Shruti Shah - The Binary Doc" style="width:420px;max-width:100%;height:auto;display:block;" />
+<p style="font-size:11px;color:#888888;">📎 Please attach: The Binary Doc Company Profile.pdf</p>
+
+</body></html>`;
+
+  currentEmail = {
+    subject: FIXED_SUBJECT,
+    body: emailTemplate,
+    toEmail: lead?.email || '',
+    toName: `${fname} ${fullLname}`.trim(),
+    greeting: greeting
+  };
+
+  document.getElementById('gen-preview-body').innerHTML = `
+    <div class="email-meta">
+      <div>From: <strong>${CFG.sigName || 'Shruti Shah'}</strong> &lt;${CFG.outlookEmail}&gt;</div>
+      <div>To: <strong>${lead ? fname+' '+fullLname+' &lt;'+lead.email+'&gt;' : fname+' '+fullLname}</strong></div>
+      <div>BCC: <strong>shruti@thebinarydoc.com</strong></div>
+      <div>Subject: <strong>${escHtml(FIXED_SUBJECT)}</strong></div>
+    </div>
+    <div class="email-body-edit" contenteditable="true" id="email-body-edit" style="white-space:pre-wrap;line-height:1.9;font-size:13px;color:var(--text);outline:none;min-height:200px;">${escHtml(emailTemplate)}</div>
+    <div class="sig-block">
+      <img src="https://raw.githubusercontent.com/Ehpimax/email-agent/main/signature.png" alt="Shruti Shah Signature" style="max-width:440px;width:100%;height:auto;margin-top:8px;display:block;" onerror="this.style.display='none';document.getElementById('sig-fallback').style.display='block'">
+      <div id="sig-fallback" style="display:none;font-size:12px;line-height:1.8;margin-top:8px;color:var(--text2);">
+        <strong style="color:var(--text);font-size:13px;">${CFG.sigName || 'Shruti Shah'}</strong><br>
+        ${CFG.sigTitle || 'Business Engagement & Partnership'} - ${CFG.sigCompany || 'The Binary Doc'}<br>
+        ${CFG.sigPhone || '+91 (909) 967 9883'} | ${CFG.outlookEmail} | ${CFG.sigWebsite || 'www.thebinarydoc.com'}
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 14px;background:var(--green-dim);border:1px solid rgba(74,222,128,0.2);border-radius:var(--radius);font-size:11px;color:var(--green);">
+      ✅ BCC: shruti@thebinarydoc.com added automatically | 📎 Attach <strong>The Binary Doc Company Profile.pdf</strong> in Outlook before sending
+    </div>`;
+
+  addLog(`Email drafted for ${salutation} ${fname} ${fullLname} — ${company}`, 'drafted');
+  if (lead) { lead.status = 'drafted'; updateMetrics(); renderLeads(); }
+}
+
+async function saveToDraft() {
+  if (!currentEmail.body) { setStatus('gen-status','Generate an email first','error'); return; }
+  // HTML body already contains signature image — do NOT append text signature
+  const fullBody = currentEmail.body;
+
+  const PROXY = 'https://tbd-proxy.onrender.com/save-draft';
+
+  setStatus('gen-status', 'Saving to Outlook drafts...', 'loading');
+
   try {
-    const { tenantId, clientId, clientSecret, outlookEmail, subject, emailBody, toEmail, toName, bccEmail } = req.body;
+    const res = await fetch(PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantId: CFG.tenantId,
+        clientId: CFG.clientId,
+        clientSecret: CFG.clientSecret,
+        outlookEmail: CFG.outlookEmail,
+        subject: currentEmail.subject,
+        emailBody: fullBody,
+        toEmail: currentEmail.toEmail,
+        toName: currentEmail.toName,
+        bccEmail: 'shruti@thebinarydoc.com'
+      })
+    });
 
-    // Get token
-    const tokenRes = await fetch(
-      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `grant_type=client_credentials&client_id=${clientId}&client_secret=${encodeURIComponent(clientSecret)}&scope=https://graph.microsoft.com/.default`
+    const data = await res.json();
+
+    if (data.success) {
+      setStatus('gen-status', '✓ Draft saved to Outlook! Open Outlook → Drafts → attach PDF → Send', 'success');
+      addLog(`Draft saved to Outlook: ${currentEmail.toName}`, 'sent');
+      const lid = parseInt(document.getElementById('gen-lead').value);
+      if (!isNaN(lid)) {
+        const l = leads.find(x => x.id === lid);
+        if (l) { l.status = 'drafted'; updateMetrics(); renderLeads(); }
       }
-    );
-    const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) {
-      return res.status(401).json({ error: 'Token failed', detail: tokenData });
-    }
-
-    // Build HTML email with signature image embedded
-    const htmlBody = emailBody;
-
-    const draftPayload = {
-      subject,
-      body: { contentType: 'HTML', content: htmlBody },
-      toRecipients: toEmail ? [{ emailAddress: { address: toEmail, name: toName || toEmail } }] : [],
-      isDraft: true
-    };
-
-    if (bccEmail) {
-      draftPayload.bccRecipients = [{ emailAddress: { address: bccEmail } }];
-    }
-
-    const draftRes = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${outlookEmail}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + tokenData.access_token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(draftPayload)
-      }
-    );
-
-    const draftData = await draftRes.json();
-    if (draftRes.ok) {
-      res.json({ success: true, id: draftData.id });
     } else {
-      res.status(400).json({ error: 'Draft failed', detail: draftData });
+      throw new Error(data.error || 'Unknown error');
     }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch(e) {
+    setStatus('gen-status', '✗ Error: ' + e.message, 'error');
+    addLog('Draft error: ' + e.message, 'error');
+  }
+}
+
+function copyEmail() {
+  const bodyEl = document.getElementById('email-body-edit');
+  if (!bodyEl) return;
+  // Copy just subject + body text (signature image is in HTML, not copyable as text)
+  navigator.clipboard.writeText(`Subject: ${currentEmail.subject}\n\n${bodyEl.innerText}`)
+    .then(() => setStatus('gen-status', '✓ Copied to clipboard', 'success'));
+}
+
+function clearGen() {
+  document.getElementById('gen-preview-body').innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;margin:0 auto 12px;display:block;opacity:0.3"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Select a lead and click generate to preview your email here</div>`;
+  ['gen-lead','gen-fname','gen-lname','gen-company','gen-role'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  setStatus('gen-status', '', '');
+  currentEmail = {subject:'',body:'',toEmail:'',toName:''};
+}
+
+// ── LOG ──
+function addLog(msg, type) {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  activityLog.unshift({ time: t, msg, type });
+  const dotClass = { drafted: 'log-dot-blue', sent: 'log-dot-green', error: 'log-dot-red' }[type] || 'log-dot-blue';
+  const lb = document.getElementById('log-body');
+  if (lb) {
+    lb.innerHTML = activityLog.map(l => `
+      <div class="log-item">
+        <div class="log-dot ${dotClass}"></div>
+        <span class="log-time">${l.time}</span>
+        <span class="log-msg">${l.msg}</span>
+      </div>`).join('');
+  }
+  const nb = document.getElementById('nb-log');
+  if (nb) nb.style.display = activityLog.length ? 'inline' : 'none';
+}
+
+function clearLog() {
+  activityLog = [];
+  document.getElementById('log-body').innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>No activity yet</div>`;
+  document.getElementById('nb-log').style.display = 'none';
+}
+
+// ── SETTINGS ──
+function loadSettings() {
+  document.getElementById('s-client-id').value = CFG.clientId;
+  document.getElementById('s-tenant-id').value = CFG.tenantId;
+  document.getElementById('s-client-secret').value = CFG.clientSecret;
+  document.getElementById('s-outlook-email').value = CFG.outlookEmail;
+  document.getElementById('s-gemini-key').value = CFG.geminiKey;
+  document.getElementById('s-sig-name').value = CFG.sigName;
+  document.getElementById('s-sig-title').value = CFG.sigTitle;
+  document.getElementById('s-sig-company').value = CFG.sigCompany;
+  document.getElementById('s-sig-phone').value = CFG.sigPhone;
+  document.getElementById('s-sig-website').value = CFG.sigWebsite;
+}
+
+function saveSettings() {
+  CFG.clientId = document.getElementById('s-client-id').value.trim();
+  CFG.tenantId = document.getElementById('s-tenant-id').value.trim();
+  CFG.clientSecret = document.getElementById('s-client-secret').value.trim();
+  CFG.outlookEmail = document.getElementById('s-outlook-email').value.trim();
+  CFG.geminiKey = document.getElementById('s-gemini-key').value.trim();
+  CFG.sigName = document.getElementById('s-sig-name').value.trim();
+  CFG.sigTitle = document.getElementById('s-sig-title').value.trim();
+  CFG.sigCompany = document.getElementById('s-sig-company').value.trim();
+  CFG.sigPhone = document.getElementById('s-sig-phone').value.trim();
+  CFG.sigWebsite = document.getElementById('s-sig-website').value.trim();
+  saveCFG();
+  setStatus('settings-status', '✓ All settings saved securely in your browser', 'success');
+  addLog('Settings updated & saved', 'drafted');
+  setTimeout(() => setStatus('settings-status','',''), 3000);
+}
+
+// ── FIRST-TIME SETUP ──
+function doSetup() {
+  const email    = document.getElementById('setup-email').value.trim();
+  const pass     = document.getElementById('setup-pass').value;
+  const confirm  = document.getElementById('setup-confirm').value;
+  const cid      = document.getElementById('setup-cid').value.trim();
+  const tid      = document.getElementById('setup-tid').value.trim();
+  const csec     = document.getElementById('setup-csec').value.trim();
+  const gkey     = document.getElementById('setup-gkey').value.trim();
+  const sigName  = document.getElementById('setup-signame').value.trim();
+  const sigTitle = document.getElementById('setup-sigtitle').value.trim();
+  const sigPhone = document.getElementById('setup-sigphone').value.trim();
+  const sigWeb   = document.getElementById('setup-sigweb').value.trim();
+  const errEl    = document.getElementById('setup-error');
+  errEl.style.display = 'none';
+
+  if (!email)   { errEl.textContent='Email is required'; errEl.style.display='block'; return; }
+  if (pass.length < 8) { errEl.textContent='Password must be at least 8 characters'; errEl.style.display='block'; return; }
+  if (pass !== confirm) { errEl.textContent='Passwords do not match'; errEl.style.display='block'; return; }
+  if (!cid||!tid||!csec) { errEl.textContent='Azure Client ID, Tenant ID and Secret are required'; errEl.style.display='block'; return; }
+  if (!gkey) { errEl.textContent='Gemini API Key is required'; errEl.style.display='block'; return; }
+
+  // Save everything
+  CFG = { clientId:cid, tenantId:tid, clientSecret:csec, outlookEmail:email,
+          geminiKey:gkey, sigName:sigName||'Shruti Shah',
+          sigTitle:sigTitle||'Business Engagement & Partnership',
+          sigCompany:'The Binary Doc', sigPhone:sigPhone||'+91 (909) 967 9883',
+          sigWebsite:sigWeb||'www.thebinarydoc.com' };
+  saveCFG();
+  AUTH.password = pass;
+  AUTH.setupDone = true;
+  AUTH.loggedIn = true;
+  saveAUTH();
+  showScreen('dashboard');
+  initDashboard();
+}
+
+// ── EXCEL UPLOAD ──
+function handleExcelUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (!rows.length) { alert('No data found in file'); return; }
+
+      // Map columns flexibly
+      const newLeads = rows.map((row, i) => {
+        const keys = Object.keys(row).map(k => k.toLowerCase().trim());
+        const get = (variants) => {
+          for (const v of variants) {
+            const k = Object.keys(row).find(k => k.toLowerCase().trim().includes(v));
+            if (k && row[k]) return String(row[k]).trim();
+          }
+          return '';
+        };
+        const fullName = get(['name','full name','contact']);
+        const nameParts = fullName.split(' ');
+        const fname = nameParts[0] || '';
+        const lname = nameParts.slice(1).join(' ') || '';
+        return {
+          id: leads.length + i,
+          fname,
+          lname,
+          title: get(['title','designation','role','position']),
+          company: get(['company','organization','org','co']),
+          email: get(['email','mail']),
+          location: get(['location','city','country','region']),
+          status: get(['email','mail']) ? 'pending' : 'noemail'
+        };
+      }).filter(l => l.fname || l.email);
+
+      leads = [...leads, ...newLeads];
+      updateMetrics();
+      renderLeads();
+      populateLeadSelect();
+      addLog(`Uploaded ${newLeads.length} leads from Excel file`, 'drafted');
+      alert(`✅ ${newLeads.length} leads loaded successfully!`);
+    } catch(e) {
+      alert('Error reading file: ' + e.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+// ── BULK DRAFT ALL ──
+async function bulkDraftAll() {
+  const pending = leads.filter(l => l.email && l.status === 'pending');
+  if (!pending.length) {
+    alert('No pending leads with email addresses found.');
+    return;
+  }
+
+  const confirm = window.confirm(`This will save ${pending.length} email drafts to Outlook. Continue?`);
+  if (!confirm) return;
+
+  // Show progress area
+  document.getElementById('bulk-progress-area').style.display = 'block';
+  document.getElementById('bulk-btn').disabled = true;
+  document.getElementById('bulk-btn').textContent = 'Saving drafts...';
+
+  const PROXY = 'https://tbd-proxy.onrender.com/save-draft';
+  const FIXED_SUBJECT = 'Technical Delivery Capability Introduction | The Binary Doc';
+  const sigName = CFG.sigName || 'Shruti Shah';
+  const sigTitle = CFG.sigTitle || 'Business Engagement & Partnership';
+  const sigCompany = CFG.sigCompany || 'The Binary Doc';
+  const sigPhone = CFG.sigPhone || '+91 (909) 967 9883';
+  const sigWeb = CFG.sigWebsite || 'www.thebinarydoc.com';
+  const sigEmail = CFG.outlookEmail || 'info@thebinarydoc.com';
+  const sigImgUrl = 'https://raw.githubusercontent.com/Ehpimax/email-agent/main/signature.png';
+
+  let success = 0, failed = 0;
+  const logEl = document.getElementById('bulk-log');
+  const barEl = document.getElementById('bulk-progress-bar');
+  const countEl = document.getElementById('bulk-count-text');
+  const statusEl = document.getElementById('bulk-status-text');
+
+  for (let i = 0; i < pending.length; i++) {
+    const lead = pending[i];
+    const salutation = detectGender(lead.fname);
+    const fullName = `${lead.fname} ${lead.lname || ''}`.trim();
+    const company = lead.company || 'your organization';
+
+    countEl.textContent = `${i + 1} / ${pending.length}`;
+    statusEl.textContent = `Saving draft for ${salutation} ${fullName}...`;
+    barEl.style.width = `${Math.round((i / pending.length) * 100)}%`;
+
+    const htmlBody = `<html><body style="font-family:Arial,sans-serif;font-size:14px;line-height:1.8;color:#000000;max-width:700px;">
+<p>Respected ${salutation} ${fullName},</p>
+<p>Greetings.</p>
+<p>I am pleased to introduce our organization, <strong>The Binary Doc</strong>, a technology engineering and delivery company with strong capabilities in cloud platforms, DevOps engineering, SaaS consulting, AI enablement, managed services, and offshore talent delivery. With delivery centers in Ahmedabad and Bangalore, we support enterprise clients through structured execution, deep technical expertise, and well-aligned governance models.</p>
+<p><strong>About The Binary Doc</strong></p>
+<p>The Binary Doc works with organizations to design, modernize, and operate scalable technology platforms aligned with long-term business and operational objectives. Our approach combines strong architectural thinking with hands-on delivery, enabling teams to adopt modern technologies while maintaining reliability, security, and performance standards required in enterprise environments.</p>
+<p><strong>Cloud Engineering &amp; Modernization Services</strong></p>
+<p>Our cloud engineering services cover architecture design, migration, modernization, and ongoing platform optimization. We focus on building scalable, resilient, and secure environments aligned with enterprise governance practices.</p>
+<p><strong>DevOps &amp; Platform Automation</strong></p>
+<p>We enable organizations to implement mature DevOps practices through automation-driven delivery models. This includes CI/CD pipeline implementation, Infrastructure as Code, release process optimization, and environment standardization across development lifecycles.</p>
+<p><strong>SaaS Advisory &amp; Integration Services</strong></p>
+<p>Our SaaS consulting capabilities support structured adoption and seamless integration of enterprise SaaS platforms. We assist with evaluation, onboarding strategy, architecture alignment, integration design, and operational optimization.</p>
+<p><strong>Managed Services, Reliability &amp; Operational Support</strong></p>
+<p>We provide managed services focused on proactive monitoring, incident response, performance tuning, and continuous optimization aligned with defined operational practices.</p>
+<p><strong>AI Enablement &amp; Modern Application Support</strong></p>
+<p>We support application modernization initiatives and the introduction of advanced capabilities such as AI-driven automation and intelligent workflows. Our focus remains on practical implementation aligned with business objectives.</p>
+<p><strong>Engagement Model</strong></p>
+<p>From an engagement standpoint, we operate as a technical extension to enterprise teams, providing senior expertise through flexible models including project-based execution, dedicated teams, and staff augmentation aligned with enterprise delivery frameworks.</p>
+<p><strong>Next Steps</strong></p>
+<p>We would welcome the opportunity to understand <strong>${company}</strong>'s current technical priorities, engagement expectations, and any internal processes or prerequisites from your side to evaluate alignment and identify areas where our engineering capabilities may support ongoing initiatives.</p>
+<p>Thank you for your time and consideration.</p>
+<p>Warm regards,</p>
+<br>
+<img src="${sigImgUrl}" alt="${sigName}" style="width:420px;max-width:100%;height:auto;display:block;" />
+<p style="font-size:11px;color:#888;">Please attach: The Binary Doc Company Profile.pdf</p>
+</body></html>`;
+
+    try {
+      const res = await fetch(PROXY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: CFG.tenantId,
+          clientId: CFG.clientId,
+          clientSecret: CFG.clientSecret,
+          outlookEmail: CFG.outlookEmail,
+          subject: FIXED_SUBJECT,
+          emailBody: htmlBody,
+          toEmail: lead.email,
+          toName: fullName,
+          bccEmail: 'shruti@thebinarydoc.com'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        success++;
+        lead.status = 'drafted';
+        logEl.innerHTML += `<span style="color:var(--green)">✓</span> ${fullName} - ${lead.company}<br>`;
+      } else {
+        failed++;
+        lead.status = 'pending';
+        logEl.innerHTML += `<span style="color:var(--red)">✗</span> ${fullName} - ${data.error || 'failed'}<br>`;
+      }
+    } catch(e) {
+      failed++;
+      logEl.innerHTML += `<span style="color:var(--red)">✗</span> ${fullName} - ${e.message}<br>`;
+    }
+
+    logEl.scrollTop = logEl.scrollHeight;
+    updateMetrics();
+    renderLeads();
+
+    // Small delay to avoid rate limiting
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  barEl.style.width = '100%';
+  countEl.textContent = `${pending.length} / ${pending.length}`;
+  statusEl.textContent = `✅ Done! ${success} drafts saved, ${failed} failed.`;
+  document.getElementById('bulk-btn').disabled = false;
+  document.getElementById('bulk-btn').textContent = 'Save All to Outlook Drafts';
+  addLog(`Bulk draft complete: ${success} saved, ${failed} failed`, 'sent');
+}
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'status-bar';
+  if (type) { el.classList.add(type); el.textContent = msg; }
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ──
+function initDashboard() {
+  updateMetrics();
+  renderLeads();
+  populateLeadSelect();
+  loadSettings();
+  const sigEl = document.getElementById('user-name-display');
+  if (sigEl && CFG.sigName) sigEl.textContent = CFG.sigName;
+  const avEl = document.getElementById('user-avatar');
+  if (avEl && CFG.sigName) avEl.textContent = CFG.sigName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const pt = document.querySelector('#page-overview .page-title');
+  const firstName = CFG.sigName ? CFG.sigName.split(' ')[0] : 'there';
+  if (pt) pt.textContent = `${greet}, ${firstName} 👋`;
+}
+
+// ── BULK DRAFT FUNCTIONS ──
+let bulkLeads = [];
+let bulkSelected = new Set();
+
+function handleFileDrop(event) {
+  event.preventDefault();
+  document.getElementById('bulk-dropzone').style.borderColor = 'var(--border2)';
+  const file = event.dataTransfer.files[0];
+  if (file) processExcelFile(file);
+}
+
+function handleFileUpload(input) {
+  const file = input.files[0];
+  if (file) processExcelFile(file);
+}
+
+function processExcelFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+      bulkLeads = rows.map((row, i) => {
+        // Auto-detect column names flexibly
+        const fname = row['First Name'] || row['FirstName'] || row['first_name'] || row['fname'] || row['Name'] || Object.values(row)[0] || '';
+        const lname = row['Last Name'] || row['LastName'] || row['last_name'] || row['lname'] || Object.values(row)[1] || '';
+        const company = row['Company'] || row['Company Name'] || row['company'] || row['Organization'] || '';
+        const email = row['Email'] || row['email'] || row['Email Address'] || '';
+        const title = row['Title'] || row['Job Title'] || row['Position'] || row['Role'] || '';
+        return { id: i, fname: fname.toString().trim(), lname: lname.toString().trim(), company: company.toString().trim(), email: email.toString().trim(), title: title.toString().trim(), status: 'pending' };
+      }).filter(r => r.email && r.email.includes('@'));
+
+      bulkSelected = new Set(bulkLeads.map(l => l.id));
+      renderBulkTable();
+
+      document.getElementById('bulk-file-info').style.display = 'block';
+      document.getElementById('bulk-file-info').textContent = `✓ ${file.name} loaded — ${bulkLeads.length} leads with email found`;
+      document.getElementById('bulk-preview-card').style.display = 'block';
+      document.getElementById('bulk-action-card').style.display = 'block';
+      document.getElementById('bulk-lead-count').textContent = `${bulkLeads.length} leads ready`;
+    } catch(err) {
+      alert('Error reading file: ' + err.message + '. Make sure it is a valid Excel .xlsx file.');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderBulkTable() {
+  const tbody = document.getElementById('bulk-tbody');
+  tbody.innerHTML = bulkLeads.map(l => {
+    const sal = detectGender(l.fname);
+    const statusColor = { pending: 'var(--amber)', done: 'var(--green)', error: 'var(--red)', processing: 'var(--blue)' }[l.status] || 'var(--amber)';
+    return `<tr id="bulk-row-${l.id}">
+      <td><input type="checkbox" ${bulkSelected.has(l.id) ? 'checked' : ''} onchange="toggleBulkSel(${l.id},this)"></td>
+      <td style="font-weight:600">${l.fname} ${l.lname}</td>
+      <td style="color:var(--text2)">${l.company}</td>
+      <td style="font-size:12px;color:var(--text2)">${l.email}</td>
+      <td style="font-size:12px">${sal}</td>
+      <td><span class="badge" style="background:transparent;color:${statusColor};font-size:11px" id="bulk-status-${l.id}">${l.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleBulkAll(chk) {
+  if (chk.checked) bulkLeads.forEach(l => bulkSelected.add(l.id));
+  else bulkSelected.clear();
+  renderBulkTable();
+}
+
+function toggleBulkSel(id, chk) {
+  if (chk.checked) bulkSelected.add(id);
+  else bulkSelected.delete(id);
+}
+
+function buildEmailHTML(lead) {
+  const sal = detectGender(lead.fname);
+  const fullName = `${lead.fname} ${lead.lname}`.trim();
+  const company = lead.company || 'your organization';
+  const sigName = CFG.sigName || 'Shruti Shah';
+  const sigTitle = CFG.sigTitle || 'Business Engagement & Partnership';
+  const sigCompany = CFG.sigCompany || 'The Binary Doc';
+  const sigPhone = CFG.sigPhone || '+91 (909) 967 9883';
+  const sigWeb = CFG.sigWebsite || 'www.thebinarydoc.com';
+  const sigEmail = CFG.outlookEmail || 'info@thebinarydoc.com';
+  const sigImg = 'https://raw.githubusercontent.com/Ehpimax/email-agent/main/signature.png';
+
+  return `<html><body style="font-family:Arial,sans-serif;font-size:14px;line-height:1.8;color:#000000;max-width:700px;">
+<p>Respected ${sal} ${fullName},</p>
+<p>Greetings.</p>
+<p>I am pleased to introduce our organization, <strong>The Binary Doc</strong>, a technology engineering and delivery company with strong capabilities in cloud platforms, DevOps engineering, SaaS consulting, AI enablement, managed services, and offshore talent delivery. With delivery centers in Ahmedabad and Bangalore, we support enterprise clients through structured execution, deep technical expertise, and well-aligned governance models.</p>
+<p><strong>About The Binary Doc</strong></p>
+<p>The Binary Doc works with organizations to design, modernize, and operate scalable technology platforms aligned with long-term business and operational objectives. Our approach combines strong architectural thinking with hands-on delivery, enabling teams to adopt modern technologies while maintaining reliability, security, and performance standards required in enterprise environments.</p>
+<p><strong>Cloud Engineering &amp; Modernization Services</strong></p>
+<p>Our cloud engineering services cover architecture design, migration, modernization, and ongoing platform optimization. We focus on building scalable, resilient, and secure environments aligned with enterprise governance practices. Our teams support transitions from legacy systems to modern cloud architectures while ensuring minimal disruption, improved performance, and long-term maintainability.</p>
+<p><strong>DevOps &amp; Platform Automation</strong></p>
+<p>We enable organizations to implement mature DevOps practices through automation-driven delivery models. This includes CI/CD pipeline implementation, Infrastructure as Code, release process optimization, and environment standardization across development lifecycles.</p>
+<p><strong>SaaS Advisory &amp; Integration Services</strong></p>
+<p>Our SaaS consulting capabilities support structured adoption and seamless integration of enterprise SaaS platforms. We assist with evaluation, onboarding strategy, architecture alignment, integration design, and operational optimization.</p>
+<p><strong>Managed Services, Reliability &amp; Operational Support</strong></p>
+<p>We provide managed services focused on proactive monitoring, incident response, performance tuning, and continuous optimization. By establishing structured observability and support processes, we help organizations maintain stable environments and reduce downtime.</p>
+<p><strong>AI Enablement &amp; Modern Application Support</strong></p>
+<p>We support application modernization initiatives and the introduction of advanced capabilities such as AI-driven automation and intelligent workflows. Our focus remains on practical implementation aligned with business objectives.</p>
+<p><strong>Engagement Model</strong></p>
+<p>We operate as a technical extension to enterprise teams, providing senior expertise through project-based execution, dedicated teams, and staff augmentation aligned with enterprise delivery frameworks.</p>
+<p><strong>Next Steps</strong></p>
+<p>We would welcome the opportunity to understand <strong>${company}</strong>'s current technical priorities, engagement expectations, and any internal processes or prerequisites from your side to evaluate alignment and identify areas where our engineering capabilities may support ongoing initiatives.</p>
+<p>Thank you for your time and consideration.</p>
+<p>Warm regards,</p>
+<br>
+<img src="${sigImg}" alt="Shruti Shah - The Binary Doc" style="width:420px;max-width:100%;height:auto;display:block;" />
+<p style="font-size:11px;color:#888">Note: Please attach The Binary Doc Company Profile.pdf before sending.</p>
+</body></html>`;
+}
+
+async function runBulkDraft() {
+  const selected = bulkLeads.filter(l => bulkSelected.has(l.id));
+  if (selected.length === 0) { alert('No leads selected'); return; }
+
+  const PROXY = 'https://tbd-proxy.onrender.com/save-draft';
+  const SUBJECT = 'Technical Delivery Capability Introduction | The Binary Doc';
+
+  document.getElementById('bulk-progress-area').style.display = 'block';
+  document.getElementById('bulk-results').innerHTML = '';
+
+  let done = 0, errors = 0;
+  const total = selected.length;
+
+  for (const lead of selected) {
+    // Update status to processing
+    const statusEl = document.getElementById(`bulk-status-${lead.id}`);
+    if (statusEl) { statusEl.textContent = 'processing...'; statusEl.style.color = 'var(--blue)'; }
+
+    document.getElementById('bulk-progress-label').textContent = `Saving draft for ${lead.fname} ${lead.lname}...`;
+    document.getElementById('bulk-progress-count').textContent = `${done} / ${total}`;
+    document.getElementById('bulk-progress-bar').style.width = `${(done/total)*100}%`;
+
+    try {
+      const htmlBody = buildEmailHTML(lead);
+      const res = await fetch(PROXY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: CFG.tenantId,
+          clientId: CFG.clientId,
+          clientSecret: CFG.clientSecret,
+          outlookEmail: CFG.outlookEmail,
+          subject: SUBJECT,
+          emailBody: htmlBody,
+          toEmail: lead.email,
+          toName: `${lead.fname} ${lead.lname}`.trim(),
+          bccEmail: 'shruti@thebinarydoc.com'
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        done++;
+        lead.status = 'done';
+        if (statusEl) { statusEl.textContent = '✓ saved'; statusEl.style.color = 'var(--green)'; }
+        addLog(`Draft saved: ${lead.fname} ${lead.lname} - ${lead.company}`, 'sent');
+      } else {
+        throw new Error(data.error || 'Failed');
+      }
+    } catch(e) {
+      errors++;
+      lead.status = 'error';
+      if (statusEl) { statusEl.textContent = '✗ error'; statusEl.style.color = 'var(--red)'; }
+      addLog(`Draft error: ${lead.fname} ${lead.lname} - ${e.message}`, 'error');
+    }
+
+    // Small delay to avoid rate limiting
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  document.getElementById('bulk-progress-bar').style.width = '100%';
+  document.getElementById('bulk-progress-label').textContent = 'Complete!';
+  document.getElementById('bulk-progress-count').textContent = `${done} / ${total}`;
+
+  document.getElementById('bulk-results').innerHTML = `
+    <div style="padding:14px;background:${errors===0?'var(--green-dim)':'var(--amber-dim)'};border-radius:var(--radius);border:1px solid ${errors===0?'rgba(74,222,128,0.2)':'rgba(251,191,36,0.2)'};font-size:13px;color:${errors===0?'var(--green)':'var(--amber)'}">
+      ${errors===0
+        ? `✅ All ${done} drafts saved to Outlook successfully! Open Outlook → Drafts → attach PDF → Send.`
+        : `⚠ ${done} drafts saved, ${errors} failed. Check Activity Log for details.`}
+    </div>`;
+
+  updateMetrics();
+}
+
+// ── STARTUP — decide which screen to show ──
+window.addEventListener('DOMContentLoaded', () => {
+  if (!AUTH.setupDone) {
+    showScreen('setup');
+  } else {
+    showScreen('login');
+    if (CFG.outlookEmail) {
+      const el = document.getElementById('login-email');
+      if (el) el.value = CFG.outlookEmail;
+    }
   }
 });
+</script>
 
-app.get('/', (req, res) => res.send('TBD Email Proxy - Running'));
+<!-- ════════════════════════════
+     FIRST-TIME SETUP SCREEN
+════════════════════════════ -->
+<div id="screen-setup" class="screen" style="align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 20px;">
+  <div style="width:520px;margin:0 auto;animation:fadeUp 0.5s ease;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
+      <div class="login-logo-dot"><span></span></div>
+      <div>
+        <div class="login-logo-text" style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--text)">the binary doc</div>
+        <div style="font-size:10px;color:var(--text3);font-family:'Syne',sans-serif;">first-time setup</div>
+      </div>
+    </div>
+    <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;margin-bottom:6px;">Welcome! Let's get started</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:28px;">Enter your credentials once. They are stored only in <strong style="color:var(--accent)">your browser</strong> — never in the file, never on any server.</div>
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
+    <div class="login-error" id="setup-error" style="margin-bottom:16px;"></div>
+
+    <!-- Account -->
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;">Account credentials</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="fg"><label>Your email</label><input class="input" id="setup-email" type="email" placeholder="info@thebinarydoc.com"></div>
+        <div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label>Dashboard password</label><input class="input" id="setup-pass" type="password" placeholder="Min 8 characters"></div>
+        <div class="fg"><label>Confirm password</label><input class="input" id="setup-confirm" type="password" placeholder="Repeat password"></div>
+      </div>
+    </div>
+
+    <!-- Azure -->
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;">Azure / Outlook</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="fg"><label>Client ID</label><input class="input" id="setup-cid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx" style="font-family:'DM Mono',monospace;font-size:12px"></div>
+        <div class="fg"><label>Tenant ID</label><input class="input" id="setup-tid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx" style="font-family:'DM Mono',monospace;font-size:12px"></div>
+      </div>
+      <div class="fg"><label>Client Secret</label><input class="input" id="setup-csec" type="password" placeholder="Azure client secret value" style="font-family:'DM Mono',monospace;font-size:12px"></div>
+    </div>
+
+    <!-- Gemini -->
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;">Gemini API</div>
+      <div class="fg"><label>Gemini API Key</label><input class="input" id="setup-gkey" type="password" placeholder="AIzaSy..." style="font-family:'DM Mono',monospace;font-size:12px"></div>
+    </div>
+
+    <!-- Signature -->
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:24px;">
+      <div style="font-size:11px;font-weight:600;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;">Email signature</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="fg"><label>Your full name</label><input class="input" id="setup-signame" placeholder="Shruti Shah"></div>
+        <div class="fg"><label>Job title</label><input class="input" id="setup-sigtitle" placeholder="Business Engagement & Partnership"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><label>Phone</label><input class="input" id="setup-sigphone" placeholder="+91 (909) 967 9883"></div>
+        <div class="fg"><label>Website</label><input class="input" id="setup-sigweb" placeholder="www.thebinarydoc.com"></div>
+      </div>
+    </div>
+
+    <button class="btn-login" onclick="doSetup()">Complete setup & enter dashboard →</button>
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--text3);">
+      🔒 All credentials stored only in your browser's local storage. Nothing is sent to any server.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
