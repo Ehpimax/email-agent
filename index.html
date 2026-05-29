@@ -707,6 +707,8 @@ input[type=checkbox] {
     <button class="btn-login" onclick="doLogin()">Sign in →</button>
     <div class="login-footer">
       <a onclick="showReset()">Forgot password?</a>
+      &nbsp;&nbsp;·&nbsp;&nbsp;
+      <a onclick="clearSetup()" style="color:var(--text3);font-size:11px;">Reset setup</a>
     </div>
   </div>
 </div>
@@ -1313,16 +1315,24 @@ let AUTH = loadAUTH();
 function doLogin() {
   // First time — no password set yet, go to setup
   if (!AUTH.setupDone) { showScreen('setup'); return; }
-  const email = document.getElementById('login-email').value.trim();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.style.display = 'none';
-  if (email === CFG.outlookEmail && pass === AUTH.password) {
+
+  const storedEmail = (CFG.outlookEmail || '').trim().toLowerCase();
+  const storedPass = AUTH.password || '';
+
+  if (email === storedEmail && pass === storedPass) {
     AUTH.loggedIn = true;
     showScreen('dashboard');
     initDashboard();
   } else {
     errEl.style.display = 'block';
+    errEl.textContent = 'Incorrect email or password. Please try again.';
+    // Debug helper — remove after fixing
+    console.log('Expected email:', storedEmail, '| Got:', email);
+    console.log('Password match:', pass === storedPass);
   }
 }
 
@@ -1331,6 +1341,16 @@ function doLogout() {
   saveAUTH();
   document.getElementById('login-pass').value = '';
   showScreen('login');
+}
+
+function clearSetup() {
+  if (window.confirm('This will clear all saved credentials and take you back to the setup screen. Continue?')) {
+    localStorage.removeItem('tbd_cfg');
+    localStorage.removeItem('tbd_auth');
+    CFG = { clientId:'', tenantId:'', clientSecret:'', outlookEmail:'', geminiKey:'', sigName:'', sigTitle:'', sigCompany:'', sigPhone:'', sigWebsite:'' };
+    AUTH = { password:'', loggedIn:false, setupDone:false };
+    showScreen('setup');
+  }
 }
 
 function showReset() { showScreen('reset'); }
