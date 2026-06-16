@@ -299,6 +299,8 @@ select.inp{cursor:pointer}
         <div style="display:flex;gap:8px">
           <input type="file" id="xl1" accept=".xlsx,.xls,.csv" style="display:none" onchange="xlUpload(this)">
           <button class="btn" onclick="document.getElementById('xl1').click()">Upload Excel</button>
+          <button class="btn btn-r" onclick="clearDrafted()">Remove Drafted</button>
+          <button class="btn btn-r" onclick="clearSent()">Remove Sent</button>
         </div>
       </div>
       <div class="acts">
@@ -580,6 +582,11 @@ function buildEmail(lead){
 <p>Warm regards,</p>
 <br>
 <img src="${sig}" alt="${cfg.sigName||'Shruti Shah'}" style="width:420px;max-width:100%;height:auto;display:block;border:0;">
+<br>
+<table style="margin-top:12px;border-top:1px solid #e0e0e0;padding-top:12px;width:100%"><tr><td>
+<p style="font-size:12px;color:#444;margin:0;">Please find our company profile attached to this email for your reference.</p>
+<p style="font-size:12px;color:#444;margin:6px 0 0;">You may also download it here: <a href="https://raw.githubusercontent.com/Ehpimax/email-agent/main/company-profile.pdf" style="color:#0066cc;">The Binary Doc - Company Profile</a></p>
+</td></tr></table>
 </body></html>`;
 }
 
@@ -747,7 +754,7 @@ function renderLeads(){
     <td style="font-size:11px;color:#555">${l.email||'<span style="color:#ff6b6b;font-size:10px">no email</span>'}</td>
     <td style="font-size:10px;color:#333;text-transform:uppercase;letter-spacing:.05em">${reg(l.loc)}</td>
     <td><span class="bdg bdg-${l.status}">${l.status}</span></td>
-    <td>${l.email?`<button class="btn btn-s" onclick="qdraft(${l.id})">Draft</button>`:''}</td>
+    <td><div style="display:flex;gap:5px">${l.email?`<button class="btn btn-s" onclick="qdraft(${l.id})">Draft</button>`:''}<button class="btn btn-s btn-r" onclick="delLead(${l.id})" title="Remove">✕</button></div></td>
   </tr>`).join('');
 }
 
@@ -829,6 +836,29 @@ function log(msg,color){
 }
 
 function clLog(){alog=[];const lb=document.getElementById('logb');if(lb)lb.innerHTML='<div class="empty">No activity yet</div>';}
+function delLead(id){
+  if(!confirm('Remove this lead from the list?'))return;
+  leads=leads.filter(l=>l.id!==id);
+  metrics();renderLeads();
+  log('Lead removed','green');
+}
+
+function clearDrafted(){
+  if(!confirm('Remove all drafted leads from the list?'))return;
+  const before=leads.length;
+  leads=leads.filter(l=>l.status!=='drafted');
+  metrics();renderLeads();
+  log(`Removed ${before-leads.length} drafted leads`,'green');
+}
+
+function clearSent(){
+  if(!confirm('Remove all sent leads from the list?'))return;
+  const before=leads.length;
+  leads=leads.filter(l=>l.status!=='sent');
+  metrics();renderLeads();
+  log(`Removed ${before-leads.length} sent leads`,'green');
+}
+
 function clearGen(){document.getElementById('gp').innerHTML='<div class="empty">Select a lead and click Generate</div>';setSts('gs','','');cureml={subject:'',body:'',toEmail:'',toName:''};}
 
 // ════════════════════════════════
